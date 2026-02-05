@@ -63,8 +63,20 @@ struct Gathered_Data{
 };
 
 Gathered_Data DataGathering(float eta_gap, float ptr_min, float ptr_max, int targetPID, vector<float> Xaxis_del){
-    TFile *file(0);
-    TString filename = "/eos/cms/store/user/sdogra/ampt/ampt_b0p0to1p0_1.dat";
+    TH1::AddDirectory(kFALSE);
+    TString filename = "/eos/user/a/afloresg/ampt_converted_data.root";
+
+    TFile *file = TFile::Open(filename);
+    if (!file || file->IsZombie()) std::cerr << "Cannot open ROOT file: " << filename << std::endl;
+
+    // I am using TTreeReaders instead of the SetBranchAddress way that I used to do
+    TTreeReader reader("tree", file);
+    TTreeReaderValue<int> evtID(reader, "eventID");
+    TTreeReaderValue<int> n_particles(reader, "n_particles");
+    TTreeReaderArray<int> pids(reader, "pid");
+    TTreeReaderArray<float> pxs(reader, "px");
+    TTreeReaderArray<float> pys(reader, "py");
+    TTreeReaderArray<float> pzs(reader, "pz");
 
     // Defining auxiliar constants
     int nBins = (Xaxis_del.size()-1);
@@ -93,14 +105,9 @@ Gathered_Data DataGathering(float eta_gap, float ptr_min, float ptr_max, int tar
         std::cerr << "Cannot open AMPT file: " << filename << std::endl;
     }
 
-    int eventID, n_particles, dummy;
-    float b, unused;
-    int npartP, npartT, npartColElaP, npartColInElaP, npartColElaT, npartColInElaT;
-
-    int eventCount = 0;
-
     // Event loop
-    while (amptFile >> eventID >> dummy >> n_particles >> b >> npartP >> npartT  >> npartColElaP >> npartColInElaP >> npartColElaT >> npartColInElaT >> unused){
+    int eventCount = 0;
+    while (reader.Next()){
         eventCount++;
         if (eventCount % 1000 == 0) cout << "Processing event: " << eventCount << endl;
 
@@ -110,11 +117,14 @@ Gathered_Data DataGathering(float eta_gap, float ptr_min, float ptr_max, int tar
         vector<float> Vec_trkPt_A, Vec_trkPt_B;
         vector<float> Vec_trkW_A, Vec_trkW_B;
 
+        int nParts = *n_particles;
+
         // Track loop
-        for (int i=0; i<n_particles; i++){
-            int pid;
-            float px, py, pz, E, x, y, z, t;
-            amptFile >> pid >> px >> py >> pz >> E >> x >> y >> z >> t;
+        for (int i=0; i<nParts; i++){
+            int pid = pids[i];
+            float px = pxs[i];
+            float py = pys[i];
+            float pz = pzs[i];
 
             if (targetPID != 0 && abs(pid) != targetPID) continue; // PID filter (if targetPID = 0 -> all charged)
 
@@ -123,7 +133,7 @@ Gathered_Data DataGathering(float eta_gap, float ptr_min, float ptr_max, int tar
             if (pt > 1e-5) theta = atan2(pt, pz); // Avoids division by zero
             double eta = -log(tan(theta/2.0));
 
-            if (pt < 0.5 || pt > 10.0 || fabs(eta) < 2.4) continue; // Kinematic filters (same as ATLAS)
+            if (pt < 0.5 || pt > 10.0 || fabs(eta) > 2.4) continue; // Kinematic filters (same as ATLAS)
 
             float corrFac = 1.0; // Monte Carlo events. I'm using this to reuse the same code as data
 
@@ -302,7 +312,7 @@ Gathered_Data DataGathering(float eta_gap, float ptr_min, float ptr_max, int tar
 }
 
 // Thats the function we call to construct the observable
-void ObsConstructor(float Eta_gap, float pTr_Min, float pTr_Max, int TargetPID, TString Savename){
+void ObsConstructor(float Eta_gap, float pTr_Min, float pTr_Max, int TargetPID, TString Name, TString Savename){
     int B = 100; // Number of Poisson bootstrap samples
     // Defining bins and plot's x axes
     vector<float> Xaxis_del = {0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 1.98, 2.2, 2.38, 2.98, 3.8, 4.5, 6.0, 8.0, 10.0}; // Those are the END of each bin, not the middle
@@ -420,13 +430,13 @@ void ObsConstructor(float Eta_gap, float pTr_Min, float pTr_Max, int TargetPID, 
 
     TFile *save_file = new TFile(Savename, "UPDATE");
 
-    TString mean_pt_name = "mean_pt";
+    if (TargetPID == 0) Name += "_all";
+    if (abs(TargetPID) == 211) Name += "_pion";
+    if (abs(TargetPID) == 321) Name += "_kaon";
+    if (abs(TargetPID) == 2212) Name += "_proton";
 
-    TString Name = "";
-    if (TargetPID == 0) Name += "all";
-    if (abs(TargetPID) == 211) Name += "pion";
-    if (abs(TargetPID) == 321) Name += "kaon";
-    if (abs(TargetPID) == 2212) Name += "proton";
+    TString mean_pt_name = "mean_pt_";
+    mean_pt_name += Name;
 
     TParameter<float> *p_mean_pt = new TParameter<float>(mean_pt_name, mean_pt);
     p_mean_pt->Write(mean_pt_name, TObject::kOverwrite); // Does not depend on pT-ref (only eta-gap)
@@ -441,21 +451,21 @@ void ObsConstructor(float Eta_gap, float pTr_Min, float pTr_Max, int TargetPID, 
         vec_unc_v0ptv0_plot[i] = 1e3*vec_unc_v0ptv0[i];
     }
     TGraph* gr_v0ptv0_ptref = new TGraphErrors(nBins, pT_axis.data(), vec_v0ptv0_plot.data(), vec_zeros.data(), vec_unc_v0ptv0_plot.data());
-    TString v0ptv0_name = "v0ptv0_ptref_";
+    TString v0ptv0_name = "v0ptv0_";
     v0ptv0_name += Name;
     gr_v0ptv0_ptref->SetName(v0ptv0_name);
     gr_v0ptv0_ptref->Write();
 
     // v0(pT)
     TGraphErrors* gr_v0pt = new TGraphErrors(nBins, pT_axis.data(), vec_v0pt.data(), vec_zeros.data(), vec_unc_v0pt.data());
-    TString v0pt_name = "v0pt_ptref_";
+    TString v0pt_name = "v0pt_";
     v0pt_name += Name;
     gr_v0pt->SetName(v0pt_name);
     gr_v0pt->Write();
 
     // v0(pT)/v0
     TGraphErrors* gr_sv0pt = new TGraphErrors(nBins, pT_axis.data(), vec_sv0pt.data(), vec_zeros.data(), vec_unc_sv0pt.data());
-    TString sv0pt_name = "sv0pt_ptref_";
+    TString sv0pt_name = "sv0pt_";
     sv0pt_name += Name;
     gr_sv0pt->SetName(sv0pt_name);
     gr_sv0pt->Write();
