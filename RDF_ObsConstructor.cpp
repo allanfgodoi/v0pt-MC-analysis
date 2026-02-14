@@ -48,7 +48,7 @@ struct Gathered_Data{
     vector<float> pT_axis;
 };
 
-Gathered_Data DataGathering(float eta_gap, float ptr_min, float ptr_max, int targetPID, vector<float> Xaxis_del){
+Gathered_Data DataGathering(float eta_gap, int nch_min, int nch_max, float ptr_min, float ptr_max, int targetPID, vector<float> Xaxis_del){
     TH1::AddDirectory(kFALSE);
     ROOT::EnableImplicitMT();
 
@@ -62,10 +62,15 @@ Gathered_Data DataGathering(float eta_gap, float ptr_min, float ptr_max, int tar
     ROOT::RDataFrame df("tree", filename); // Create RDataFrame
     cout << "Reading data..." << endl;
 
+    // Centrality cut
+    auto df_nch = df.Define("Nch", "(int)px.size()");
+    TString cent_logic = TString::Format("Nch >= %d && Nch <= %d", nch_min, nch_max);
+    auto df_centrality = df_nch.Filter(cent_logic.Data(), "Centrality Cut");
+
     // Defining kinematic variables
-    auto df_kin = df.Define("pt_raw", "sqrt(px*px + py*py)")
-                    .Define("theta_raw", "Where(pt_raw>1e-5, atan2(pt_raw, pz), 0.0)") // Avoids division by zero
-                    .Define("eta_raw", "-log(tan(theta_raw/2))");
+    auto df_kin = df_centrality .Define("pt_raw", "sqrt(px*px + py*py)")
+                                .Define("theta_raw", "Where(pt_raw>1e-5, atan2(pt_raw, pz), 0.0)") // Avoids division by zero
+                                .Define("eta_raw", "-log(tan(theta_raw/2))");
 
     // Applying PID and kinematic cuts
     TString cut_expr = (targetPID == 0) ? "1" : TString::Format("abs(pid)==%d", targetPID);
@@ -164,7 +169,7 @@ Gathered_Data DataGathering(float eta_gap, float ptr_min, float ptr_max, int tar
     return data;
 }
 
-void ObsConstructor(float Eta_gap, float pTr_Min, float pTr_Max, int TargetPID, TString Name, TString Savename){
+void ObsConstructor(float Eta_gap, int Nch_min, int Nch_max, float pTr_Min, float pTr_Max, int TargetPID, TString Name, TString Savename){
     
     int B = 100; // Number of Poisson bootstrap samples
 
@@ -172,7 +177,7 @@ void ObsConstructor(float Eta_gap, float pTr_Min, float pTr_Max, int TargetPID, 
     vector<float> Xaxis_del = {0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 1.98, 2.2, 2.38, 2.98, 3.8, 4.5, 6.0, 8.0, 10.0}; // Those are the END of each bin, not the middle
     int nBins = (Xaxis_del.size()-1);
 
-    Gathered_Data gData = DataGathering(Eta_gap, pTr_Min, pTr_Max, TargetPID, Xaxis_del);
+    Gathered_Data gData = DataGathering(Eta_gap, Nch_min, Nch_max, pTr_Min, pTr_Max, TargetPID, Xaxis_del);
     float mean_pt = gData.mean_pt;
     float mean_pt_ref = gData.mean_pt_ref;
     vector<float> vec_dpt_ref_A = gData.vec_dpt_ref_A;
