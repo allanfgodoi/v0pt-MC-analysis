@@ -1,11 +1,11 @@
 void Converter(){
 
-    TString filename = "/eos/cms/store/user/sdogra/ampt/ampt_b0p0to1p0_1.dat";
+    TString filename = "/eos/cms/store/user/sdogra/ampt/inPutFiles/HeHe/ampt_2M.dat";
 
     ifstream amptFile(filename.Data());
     if (!amptFile.is_open()) std::cerr << "Cannot open AMPT file: " << filename << std::endl;
     
-    TFile *f = new TFile("/eos/user/a/afloresg/ampt_converted_data.root", "RECREATE");
+    TFile *f = new TFile("/eos/user/a/afloresg/MC-studies/HeHe/ampt_2M.root", "RECREATE");
     TTree *tree = new TTree("tree", "AMPT Events");
 
     // Event info
@@ -50,6 +50,20 @@ void Converter(){
         tree->Fill();
         count++;
         if (count % 1000 == 0) std::cout << "Converting events: " << count << std::endl;
+    } 
+
+    // Verifying file reading
+    if (amptFile.eof()) {
+        std::cout << "SUCCESS: The file was completely read)." << std::endl;
+    } else if (amptFile.fail()) {
+        std::cout << "ERROR: Loop stopped due to some error!" << std::endl;
+        std::cout << "Reading stopped after event: " << count << std::endl;
+        
+        // Try to read the wrong line
+        amptFile.clear(); // Clears error state to read the wrong line
+        string wrong_line;
+        getline(amptFile, wrong_line);
+        std::cout << "Something wrong in the following line: " << wrong_line << std::endl;
     }
 
     tree->Write();
