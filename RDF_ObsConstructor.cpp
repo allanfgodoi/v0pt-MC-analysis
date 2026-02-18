@@ -62,15 +62,15 @@ Gathered_Data DataGathering(float eta_gap, int nch_min, int nch_max, float ptr_m
     ROOT::RDataFrame df("tree", filename); // Create RDataFrame
     cout << "Reading data..." << endl;
 
+    // Defining kinematic variables
+    auto df_kin = df.Define("pt_raw", "sqrt(px*px + py*py)")
+                    .Define("theta_raw", "Where(pt_raw>1e-5, atan2(pt_raw, pz), 0.0)") // Avoids division by zero
+                    .Define("eta_raw", "-log(tan(theta_raw/2))");
+
     // Centrality cut
-    auto df_nch = df.Define("Nch", "(int)px.size()");
+    auto df_nch = df_kin.Define("Nch", "(int)Sum(pt_raw > 0.02 && abs(eta_raw) > 3.0 && abs(eta_raw) < 5.0)"); // Counting Nch in forward region (Sum: counts the number of true entries in each row)
     TString cent_logic = TString::Format("Nch >= %d && Nch <= %d", nch_min, nch_max);
     auto df_centrality = df_nch.Filter(cent_logic.Data(), "Centrality Cut");
-
-    // Defining kinematic variables
-    auto df_kin = df_centrality .Define("pt_raw", "sqrt(px*px + py*py)")
-                                .Define("theta_raw", "Where(pt_raw>1e-5, atan2(pt_raw, pz), 0.0)") // Avoids division by zero
-                                .Define("eta_raw", "-log(tan(theta_raw/2))");
 
     // Applying PID and kinematic cuts
     TString cut_expr = (targetPID == 0) ? "1" : TString::Format("abs(pid)==%d", targetPID);
