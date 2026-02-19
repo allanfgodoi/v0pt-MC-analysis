@@ -48,18 +48,16 @@ struct Gathered_Data{
     vector<float> pT_axis;
 };
 
-Gathered_Data DataGathering(float eta_gap, int nch_min, int nch_max, float ptr_min, float ptr_max, int targetPID, vector<float> Xaxis_del){
+Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nch_max, float ptr_min, float ptr_max, unordered_set<int> targetPID, vector<float> Xaxis_del){
     TH1::AddDirectory(kFALSE);
     ROOT::EnableImplicitMT();
 
-    TString filename = "ampt_converted_data.root";
-
     // File check
-    TFile *fileCheck = TFile::Open(filename);
-    if (!fileCheck || fileCheck->IsZombie()) std::cerr << "Cannot open ROOT file: " << filename << std::endl;
+    TFile *fileCheck = TFile::Open(Filename);
+    if (!fileCheck || fileCheck->IsZombie()) std::cerr << "Cannot open ROOT file: " << Filename << std::endl;
     fileCheck->Close(); delete fileCheck;
 
-    ROOT::RDataFrame df("tree", filename); // Create RDataFrame
+    ROOT::RDataFrame df("tree", Filename); // Create RDataFrame
     cout << "Reading data..." << endl;
 
     // Defining kinematic variables
@@ -73,7 +71,19 @@ Gathered_Data DataGathering(float eta_gap, int nch_min, int nch_max, float ptr_m
     auto df_centrality = df_nch.Filter(cent_logic.Data(), "Centrality Cut");
 
     // Applying PID and kinematic cuts
-    TString cut_expr = (targetPID == 0) ? "1" : TString::Format("abs(pid)==%d", targetPID);
+    TString cut_expr = "";
+    if (targetPID.contains(0)){
+        cut_expr = "1";
+    } else{
+        bool first = true;
+        for (int pid : targetPID){
+            if (!first){
+                cut_expr += " || ";
+            }
+            cut_expr += TString::Format("abs(pid)==%d", pid);
+            first = false;
+        }
+    }
     TString cut_logic = TString::Format("(%s) && pt_raw>0.5 && pt_raw<10.0 && abs(eta_raw)<2.4", cut_expr.Data());
     auto df_cuted = df_kin  .Define("cut", cut_logic.Data())
                             .Define("pt", "pt_raw[cut]")
@@ -169,7 +179,7 @@ Gathered_Data DataGathering(float eta_gap, int nch_min, int nch_max, float ptr_m
     return data;
 }
 
-void ObsConstructor(float Eta_gap, int Nch_min, int Nch_max, float pTr_Min, float pTr_Max, int TargetPID, TString Name, TString Savename){
+void ObsConstructor(float Eta_gap, int Nch_min, int Nch_max, float pTr_Min, float pTr_Max, unordered_set<int> TargetPID, TString Name, TString Filename, TString Savename){
     
     int B = 100; // Number of Poisson bootstrap samples
 
@@ -177,7 +187,7 @@ void ObsConstructor(float Eta_gap, int Nch_min, int Nch_max, float pTr_Min, floa
     vector<float> Xaxis_del = {0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 1.98, 2.2, 2.38, 2.98, 3.8, 4.5, 6.0, 8.0, 10.0}; // Those are the END of each bin, not the middle
     int nBins = (Xaxis_del.size()-1);
 
-    Gathered_Data gData = DataGathering(Eta_gap, Nch_min, Nch_max, pTr_Min, pTr_Max, TargetPID, Xaxis_del);
+    Gathered_Data gData = DataGathering(Filename, Eta_gap, Nch_min, Nch_max, pTr_Min, pTr_Max, TargetPID, Xaxis_del);
     float mean_pt = gData.mean_pt;
     float mean_pt_ref = gData.mean_pt_ref;
     vector<float> vec_dpt_ref_A = gData.vec_dpt_ref_A;
@@ -245,12 +255,14 @@ void ObsConstructor(float Eta_gap, int Nch_min, int Nch_max, float pTr_Min, floa
 
     TFile *save_file = new TFile(Savename, "UPDATE"); // Savefile
 
-    // defining PID labels
-    if (TargetPID == 0) Name += "_all";
-    if (abs(TargetPID) == 211) Name += "_pion";
-    if (abs(TargetPID) == 321) Name += "_kaon";
-    if (abs(TargetPID) == 2212) Name += "_proton";
-
+    // Defining PID labels
+    if (TargetPID.size() == 1){
+        if (TargetPID.contains(211)) Name += "_pion";
+        if (TargetPID.contains(321)) Name += "_kaon";
+        if (TargetPID.contains(2212)) Name += "_proton";
+    } else {
+        Name += "_all";
+    }
     TString mean_pt_name = "mean_pt_";
     mean_pt_name += Name;
 
