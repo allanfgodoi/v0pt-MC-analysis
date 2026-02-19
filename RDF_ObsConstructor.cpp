@@ -72,7 +72,7 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
 
     // Applying PID and kinematic cuts
     TString cut_expr = "";
-    if (targetPID.contains(0)){
+    if (targetPID.count(0) > 0){
         cut_expr = "1";
     } else{
         bool first = true;
@@ -257,9 +257,9 @@ void ObsConstructor(float Eta_gap, int Nch_min, int Nch_max, float pTr_Min, floa
 
     // Defining PID labels
     if (TargetPID.size() == 1){
-        if (TargetPID.contains(211)) Name += "_pion";
-        if (TargetPID.contains(321)) Name += "_kaon";
-        if (TargetPID.contains(2212)) Name += "_proton";
+        if (TargetPID.count(211)) Name += "_pion";
+        if (TargetPID.count(321)) Name += "_kaon";
+        if (TargetPID.count(2212)) Name += "_proton";
     } else {
         Name += "_all";
     }
