@@ -1,4 +1,4 @@
-void Converter(string filename, TString savename){
+void Converter(TString filename, TString savename){
 
     ifstream amptFile(filename.Data());
     if (!amptFile.is_open()) std::cerr << "Cannot open AMPT file: " << filename << std::endl;
