@@ -1,11 +1,9 @@
-void Converter(){
-
-    TString filename = "/eos/cms/store/user/sdogra/ampt/inPutFiles/HeHe/ampt_2M.dat";
+void Converter(string filename, TString savename){
 
     ifstream amptFile(filename.Data());
     if (!amptFile.is_open()) std::cerr << "Cannot open AMPT file: " << filename << std::endl;
     
-    TFile *f = new TFile("/eos/user/a/afloresg/MC-studies/HeHe/ampt_2M.root", "RECREATE");
+    TFile *f = new TFile(savename, "RECREATE");
     TTree *tree = new TTree("tree", "AMPT Events");
 
     // Event info
