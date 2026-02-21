@@ -104,11 +104,13 @@ void DoPlotMain(){
     // v0(pT)
     TGraph *gr_v0pt_pion = (TGraph*)f->Get("v0pt_ptref_1_pion");
     TGraph *gr_v0pt_kaon = (TGraph*)f->Get("v0pt_ptref_1_kaon"); 
-    TGraph *gr_v0pt_proton = (TGraph*)f->Get("v0pt_ptref_1_proton"); 
+    TGraph *gr_v0pt_proton = (TGraph*)f->Get("v0pt_ptref_1_proton");
+    TGraph *gr_v0pt_all = (TGraph*)f->Get("v0pt_ptref_1_all"); 
 
-    customize_TGraph(gr_v0pt_pion, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.3, 0.9, 20, kRed, 0.8);
-    customize_TGraph(gr_v0pt_kaon, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.3, 0.9, 21, kBlue, 0.8);
-    customize_TGraph(gr_v0pt_proton, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.46, 22, kGreen+2, 0.8);
+    customize_TGraph(gr_v0pt_pion, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.3, 0.9, 21, kRed, 0.8);
+    customize_TGraph(gr_v0pt_kaon, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.3, 0.9, 22, kBlue, 0.8);
+    customize_TGraph(gr_v0pt_proton, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.3, 0.9, 34, kGreen+2, 0.8);
+    customize_TGraph(gr_v0pt_all, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.3, 0.9, 20, kBlack, 0.8);
 
     auto c = new TCanvas("c", "c", 1100, 500);
     c->Divide(2, 1);
@@ -126,6 +128,7 @@ void DoPlotMain(){
     legend_v0pt_cents->AddEntry(gr_v0pt_pion, "#pi^{#pm}", "pfl");
     legend_v0pt_cents->AddEntry(gr_v0pt_kaon, "K^{#pm}", "pfl");
     legend_v0pt_cents->AddEntry(gr_v0pt_proton, "p,#bar{p}", "pfl");
+    legend_v0pt_cents->AddEntry(gr_v0pt_all, "#pi^{#pm},K^{#pm},p,#bar{p}", "pfl");
     legend_v0pt_cents->SetBorderSize(0);
     legend_v0pt_cents->SetFillStyle(0);
 
@@ -140,6 +143,7 @@ void DoPlotMain(){
     gr_v0pt_pion->Draw("AP");
     gr_v0pt_kaon->Draw("P SAME");
     gr_v0pt_proton->Draw("P SAME");
+    gr_v0pt_all->Draw("P SAME");
     legend_v0pt_text->Draw();
     legend_v0pt_cents->Draw();
     legend_v0pt_label->Draw();
@@ -149,11 +153,13 @@ void DoPlotMain(){
     // sv0(pT)
     TGraph *gr_sv0pt_pion = (TGraph*)f->Get("sv0pt_ptref_1_pion");
     TGraph *gr_sv0pt_kaon = (TGraph*)f->Get("sv0pt_ptref_1_kaon"); 
-    TGraph *gr_sv0pt_proton = (TGraph*)f->Get("sv0pt_ptref_1_proton"); 
+    TGraph *gr_sv0pt_proton = (TGraph*)f->Get("sv0pt_ptref_1_proton");
+    TGraph *gr_sv0pt_all = (TGraph*)f->Get("sv0pt_ptref_1_all");
 
-    customize_TGraph(gr_sv0pt_pion, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 15.0, 0.1, 10.0, 20, kRed, 0.8);
-    customize_TGraph(gr_sv0pt_kaon, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 10.0, 0.1, 10.0, 21, kBlue, 0.8);
-    customize_TGraph(gr_sv0pt_proton, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 10.0, 0.1, 10.0, 22, kGreen+2, 0.8);
+    customize_TGraph(gr_sv0pt_pion, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 15.0, 0.1, 10.0, 21, kRed, 0.8);
+    customize_TGraph(gr_sv0pt_kaon, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 10.0, 0.1, 10.0, 22, kBlue, 0.8);
+    customize_TGraph(gr_sv0pt_proton, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 10.0, 0.1, 10.0, 34, kGreen+2, 0.8);
+    customize_TGraph(gr_sv0pt_proton, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 10.0, 0.1, 10.0, 20, kBlack, 0.8);
 
     // sv0(pT) legend
     auto legend_sv0pt_text = new TLegend(0.025, 0.98, 0.5, 0.82);
@@ -168,12 +174,13 @@ void DoPlotMain(){
     legend_sv0pt_cents->AddEntry(gr_sv0pt_pion, "#pi^{#pm}", "pfl");
     legend_sv0pt_cents->AddEntry(gr_sv0pt_kaon, "K^{#pm}", "pfl");
     legend_sv0pt_cents->AddEntry(gr_sv0pt_proton, "p,#bar{p}", "pfl");
+    legend_sv0pt_cents->AddEntry(gr_sv0pt_all, "#pi^{#pm},K^{#pm},p,#bar{p}", "pfl");
     legend_sv0pt_cents->SetBorderSize(0);
     legend_sv0pt_cents->SetFillStyle(0);
 
     auto legend_sv0pt_label = new TLegend(0.78, 0.9, 0.93, 0.93);
     legend_sv0pt_label->SetTextSize(0.055);
-    legend_sv0pt_label->AddEntry((TObject*)0, "(a)", "");
+    legend_sv0pt_label->AddEntry((TObject*)0, "(b)", "");
     legend_sv0pt_label->SetBorderSize(0);
     legend_sv0pt_label->SetFillStyle(0);
 
@@ -182,6 +189,7 @@ void DoPlotMain(){
     gr_sv0pt_pion->Draw("AP");
     gr_sv0pt_kaon->Draw("P SAME");
     gr_sv0pt_proton->Draw("P SAME");
+    gr_sv0pt_all->Draw("P SAME");
     legend_sv0pt_text->Draw();
     legend_sv0pt_cents->Draw();
     legend_sv0pt_label->Draw();
