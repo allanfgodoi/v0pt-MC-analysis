@@ -97,9 +97,9 @@ pair<TGraphAsymmErrors*, TGraphAsymmErrors*> csvToTGraph(TString fipflath){
     return {g_stat, g_syst};
 }
 
-void DoPlotMain(){
+void DoPlotMain(TString Filename, TString Savename){
     
-    TFile *f = TFile::Open("/eos/user/a/afloresg/MC-studies/HeHe/ObsData.root", "READ");
+    TFile *f = TFile::Open(Filename, "READ");
 
     // v0(pT)
     TGraph *gr_v0pt_pion = (TGraph*)f->Get("v0pt_ptref_1_pion");
@@ -107,10 +107,10 @@ void DoPlotMain(){
     TGraph *gr_v0pt_proton = (TGraph*)f->Get("v0pt_ptref_1_proton");
     TGraph *gr_v0pt_all = (TGraph*)f->Get("v0pt_ptref_1_all"); 
 
-    customize_TGraph(gr_v0pt_pion, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.3, 0.9, 21, kRed, 0.8);
-    customize_TGraph(gr_v0pt_kaon, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.3, 0.9, 22, kBlue, 0.8);
-    customize_TGraph(gr_v0pt_proton, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.3, 0.9, 34, kGreen+2, 0.8);
-    customize_TGraph(gr_v0pt_all, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.3, 0.9, 20, kBlack, 0.8);
+    customize_TGraph(gr_v0pt_pion, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.9, 21, kRed, 0.8);
+    customize_TGraph(gr_v0pt_kaon, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.9, 22, kBlue, 0.8);
+    customize_TGraph(gr_v0pt_proton, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.9, 34, kGreen+2, 0.8);
+    customize_TGraph(gr_v0pt_all, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.9, 20, kBlack, 0.8);
 
     auto c = new TCanvas("c", "c", 1100, 500);
     c->Divide(2, 1);
@@ -140,10 +140,10 @@ void DoPlotMain(){
 
     // Drawing v0(pT) plot
     c->cd(1);
-    gr_v0pt_pion->Draw("AP");
+    gr_v0pt_all->Draw("AP");
+    gr_v0pt_pion->Draw("P SAME");
     gr_v0pt_kaon->Draw("P SAME");
     gr_v0pt_proton->Draw("P SAME");
-    gr_v0pt_all->Draw("P SAME");
     legend_v0pt_text->Draw();
     legend_v0pt_cents->Draw();
     legend_v0pt_label->Draw();
@@ -159,7 +159,7 @@ void DoPlotMain(){
     customize_TGraph(gr_sv0pt_pion, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 15.0, 0.1, 10.0, 21, kRed, 0.8);
     customize_TGraph(gr_sv0pt_kaon, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 10.0, 0.1, 10.0, 22, kBlue, 0.8);
     customize_TGraph(gr_sv0pt_proton, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 10.0, 0.1, 10.0, 34, kGreen+2, 0.8);
-    customize_TGraph(gr_sv0pt_proton, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 10.0, 0.1, 10.0, 20, kBlack, 0.8);
+    customize_TGraph(gr_sv0pt_all, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 10.0, 0.1, 10.0, 20, kBlack, 0.8);
 
     // sv0(pT) legend
     auto legend_sv0pt_text = new TLegend(0.025, 0.98, 0.5, 0.82);
@@ -198,16 +198,16 @@ void DoPlotMain(){
 
     // Saving canvas as pdf
     c->Update();
-    c->SaveAs("/eos/user/a/afloresg/MC-studies/HeHe/PlotMain.pdf");
+    c->SaveAs(Savename);
     delete c;
 }
 
-void DoPlotRefs(){
+void DoPlotRefs(TString Filename, TString Savename){
 
     auto c = new TCanvas("c_ptref", "c_ptref", 1100, 1000);
     c->Divide(2, 2);
 
-    TFile *f = TFile::Open("/eos/user/a/afloresg/MC-studies/HeHe/ObsData.root", "READ");
+    TFile *f = TFile::Open(Filename, "READ");
 
     // READ TGRAPHS
 
@@ -235,9 +235,9 @@ void DoPlotRefs(){
 
     // Pion
     c->cd(1);
-    customize_TGraph(gr_1_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 20, 2, 1.0);
-    customize_TGraph(gr_2_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 21, 4, 1.0);
-    customize_TGraph(gr_3_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 22, 6, 1.0);
+    customize_TGraph(gr_1_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 20, 2, 1.0);
+    customize_TGraph(gr_2_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 21, 4, 1.0);
+    customize_TGraph(gr_3_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 22, 6, 1.0);
 
     auto leg_title_pion = new TLegend(0.04, 0.98, 0.5, 0.825);
     leg_title_pion->SetTextSize(0.055);
@@ -354,15 +354,15 @@ void DoPlotRefs(){
     gPad->SetTopMargin(0.01);
 
     c->Update();
-    c->SaveAs("/eos/user/a/afloresg/MC-studies/HeHe/PlotRefs.pdf");
+    c->SaveAs(Savename);
 }
 
-void DoPlotEtas(){
+void DoPlotEtas(TString Filename, TString Savename){
 
     auto c = new TCanvas("c_etas", "c_etas", 1100, 1000);
     c->Divide(2, 2);
 
-    TFile *f = TFile::Open("/eos/user/a/afloresg/MC-studies/HeHe/ObsData.root", "READ");
+    TFile *f = TFile::Open(Filename, "READ");
 
     // READ TGRAPHS
 
@@ -394,10 +394,10 @@ void DoPlotEtas(){
 
     // Pion
     c->cd(1);
-    customize_TGraph(gr_0_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 20, 2, 1.0);
-    customize_TGraph(gr_1_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 21, 4, 1.0);
-    customize_TGraph(gr_2_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 22, 6, 1.0);
-    customize_TGraph(gr_3_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 34, 209, 1.0);
+    customize_TGraph(gr_0_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 20, 2, 1.0);
+    customize_TGraph(gr_1_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 21, 4, 1.0);
+    customize_TGraph(gr_2_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 22, 6, 1.0);
+    customize_TGraph(gr_3_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 34, 209, 1.0);
 
     auto leg_title_pion = new TLegend(0.04, 0.98, 0.5, 0.825);
     leg_title_pion->SetTextSize(0.055);
@@ -460,10 +460,10 @@ void DoPlotEtas(){
 
     // Proton
     c->cd(3);
-    customize_TGraph(gr_0_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.4, 20, 2, 1.0);
-    customize_TGraph(gr_1_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.4, 21, 4, 1.0);
-    customize_TGraph(gr_2_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.4, 22, 6, 1.0);
-    customize_TGraph(gr_3_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.4, 34, 209, 1.0);
+    customize_TGraph(gr_0_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.09, 0.4, 20, 2, 1.0);
+    customize_TGraph(gr_1_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.09, 0.4, 21, 4, 1.0);
+    customize_TGraph(gr_2_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.09, 0.4, 22, 6, 1.0);
+    customize_TGraph(gr_3_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.09, 0.4, 34, 209, 1.0);
 
     auto leg_title_proton = new TLegend(0.04, 0.98, 0.5, 0.825);
     leg_title_proton->SetTextSize(0.055);
@@ -493,10 +493,10 @@ void DoPlotEtas(){
 
     // All
     c->cd(4);
-    customize_TGraph(gr_0_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 20, 2, 1.0);
-    customize_TGraph(gr_1_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 21, 4, 1.0);
-    customize_TGraph(gr_2_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 22, 6, 1.0);
-    customize_TGraph(gr_3_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 34, 209, 1.0);
+    customize_TGraph(gr_0_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.02, 0.75, 20, 2, 1.0);
+    customize_TGraph(gr_1_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.02, 0.75, 21, 4, 1.0);
+    customize_TGraph(gr_2_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.02, 0.75, 22, 6, 1.0);
+    customize_TGraph(gr_3_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.02, 0.75, 34, 209, 1.0);
 
     auto leg_title_all = new TLegend(0.04, 0.98, 0.5, 0.825);
     leg_title_all->SetTextSize(0.055);
@@ -514,10 +514,10 @@ void DoPlotEtas(){
     leg_ptref_all->SetBorderSize(0);
     leg_ptref_all->SetFillStyle(0);
 
-    gr_1_all->Draw("AP");
-    gr_0_all->Draw("P SAME");
+    gr_0_all->Draw("AP");
     gr_3_all->Draw("P SAME");
     gr_2_all->Draw("P SAME");
+    gr_1_all->Draw("P SAME");
     leg_title_all->Draw();
     leg_ptref_all->Draw();
     gPad->SetLogx();
@@ -525,5 +525,5 @@ void DoPlotEtas(){
     gPad->SetTopMargin(0.01);
 
     c->Update();
-    c->SaveAs("/eos/user/a/afloresg/MC-studies/HeHe/PlotEtas.pdf");
+    c->SaveAs(Savename);
 }
