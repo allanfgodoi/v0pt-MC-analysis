@@ -54,10 +54,10 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
 
     // File check
     TFile *fileCheck = TFile::Open(Filename);
-    if (!fileCheck || fileCheck->IsZombie()) std::cerr << "Cannot open ROOT file: " << Filename << std::endl;
+    if (!fileCheck || fileCheck->IsZombie()) cerr << "Cannot open ROOT file: " << Filename << endl;
     fileCheck->Close(); delete fileCheck;
 
-    ROOT::RDataFrame df("tree", Filename); // Create RDataFrame
+    ROOT::RDataFrame df("tree", Filename); // Creates RDataFrame
     cout << "Reading data..." << endl;
 
     // Defining kinematic variables
@@ -85,9 +85,9 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
         }
     }
     TString cut_logic = TString::Format("(%s) && pt_raw>0.5 && pt_raw<10.0 && abs(eta_raw)<2.4", cut_expr.Data());
-    auto df_cuted = df_kin  .Define("cut", cut_logic.Data())
-                            .Define("pt", "pt_raw[cut]")
-                            .Define("eta", "eta_raw[cut]");
+    auto df_cuted = df_centrality   .Define("cut", cut_logic.Data())
+                            	    .Define("pt", "pt_raw[cut]")
+                            	    .Define("eta", "eta_raw[cut]");
 
     // Separing in subevents A and B and pT-ref
     TString subA_logic = TString::Format("eta >= -2.4 && eta <= -%f/2", eta_gap);
