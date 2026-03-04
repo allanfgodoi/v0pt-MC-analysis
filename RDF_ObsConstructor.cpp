@@ -1,8 +1,13 @@
+// To use this macro you need to have a .root file with the events, use Converter.cpp to convert them.
+// USAGE EXAMPLE (0-5%): ObsConstructor(1.0, 105, 9999, 0.5, 2.0, {211, 321, 2212}, "0005", "/eos/user/a/afloresg/MC-studies/BB/ampt_all.root", "/eos/user/a/afloresg/MC-studies/BB/ObsData.root")
+// ObsConstructor(eta-gap, Nch-min, Nch-max, pT-ref-min, pT-ref-max, {TargetPIDs}, "centrality-label", "input-file", "output-file")
+
 #include <cmath>
 #include "TMath.h"
 using namespace std;
 using namespace ROOT::VecOps;
 
+// Transposing function
 vector<RVec<float>> Transpose(vector<RVec<float>>& x){
     int rows = x.size();
     int cols = x[0].size();
@@ -15,6 +20,7 @@ vector<RVec<float>> Transpose(vector<RVec<float>>& x){
     return v;
 }
 
+// Poisson Bootstrap function to calculate statistical uncertainties
 float Bootstrap(const RVec<float>& x, int B){
     static TRandom3 rndgen;
     int N = x.size();
@@ -34,6 +40,7 @@ float Bootstrap(const RVec<float>& x, int B){
     return bootstrapped_error;
 }
 
+// Struct to get the data from DataGathering function
 struct Gathered_Data{
     float mean_pt;
     float mean_pt_ref;
@@ -48,6 +55,7 @@ struct Gathered_Data{
     vector<float> pT_axis;
 };
 
+// Data reader function
 Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nch_max, float ptr_min, float ptr_max, unordered_set<int> targetPID, vector<float> Xaxis_del){
     TH1::AddDirectory(kFALSE);
     ROOT::EnableImplicitMT();
@@ -122,28 +130,29 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
         return counter;
     };
 
+    // Removing empty events
+    auto df_valid = df_subs.Filter("pt_ref_A.size()>0 && pt_ref_B.size()>0", "Non-empty events");
+
     // Constructing n_A(pT), n_B(pT) and n(pT) (using {pt} to take track's pT from each event)
-    auto df_bins = df_subs  .Define("n_pt_A", binner, {"pt_A"})
+    auto df_bins = df_valid .Define("n_pt_A", binner, {"pt_A"})
                             .Define("n_pt_B", binner, {"pt_B"})
                             .Define("n_pt_AB", binner, {"pt_AB"});
 
     // Calculating mean pTs
-    auto ptr_mean_pt_AB = df_subs.Mean("pt_AB"); float mean_pt_AB = *ptr_mean_pt_AB; // <pT>
-    auto ptr_mean_pt_ref_A = df_subs.Mean("pt_ref_A"); float mean_pt_ref_A = *ptr_mean_pt_ref_A; // <pT_ref_A>
-    auto ptr_mean_pt_ref_B = df_subs.Mean("pt_ref_B"); float mean_pt_ref_B = *ptr_mean_pt_ref_B; // <pT_ref_B>
-    auto ptr_mean_pt_ref_AB = df_subs.Mean("pt_ref_AB"); float mean_pt_ref_AB = *ptr_mean_pt_ref_AB; // <pT_ref_AB>
+    auto ptr_mean_pt_AB = df_bins.Mean("pt_AB"); float mean_pt_AB = *ptr_mean_pt_AB; // <pT>
+    auto ptr_mean_pt_ref_A = df_bins.Mean("pt_ref_A"); float mean_pt_ref_A = *ptr_mean_pt_ref_A; // <pT_ref_A>
+    auto ptr_mean_pt_ref_B = df_bins.Mean("pt_ref_B"); float mean_pt_ref_B = *ptr_mean_pt_ref_B; // <pT_ref_B>
+    auto ptr_mean_pt_ref_AB = df_bins.Mean("pt_ref_AB"); float mean_pt_ref_AB = *ptr_mean_pt_ref_AB; // <pT_ref_AB>
 
     // Evaluating delta [pT]s (d[pT_ref_i] = [pT_ref_i] - <pT_ref_i>)
-    auto df_dpts = df_bins  .Define("mean_evt_pt_ref_A", "Mean(pt_ref_A)")
-                            .Define("mean_evt_pt_ref_B", "Mean(pt_ref_B)")
-                            .Define("dpt_ref_A", [mean_pt_ref_A](double mean_evt_pt_ref){return (float)(mean_evt_pt_ref-mean_pt_ref_A);}, {"mean_evt_pt_ref_A"})
-                            .Define("dpt_ref_B", [mean_pt_ref_B](double mean_evt_pt_ref){return (float)(mean_evt_pt_ref-mean_pt_ref_B);}, {"mean_evt_pt_ref_B"})
+    auto df_dpts = df_bins .Define("dpt_ref_A", [mean_pt_ref_A](const RVec<float>& pt_ref){return (float)(Mean(pt_ref)-mean_pt_ref_A);}, {"pt_ref_A"})
+                            .Define("dpt_ref_B", [mean_pt_ref_B](const RVec<float>& pt_ref){return (float)(Mean(pt_ref)-mean_pt_ref_B);}, {"pt_ref_B"})
                             .Define("dpt_ref_AB", "dpt_ref_A*dpt_ref_B");                    
 
     // Getting the track fractions of each bin of ALL events (tranposing n_pt_i)
-    auto ptr_n_pt_A = df_bins.Take<RVec<float>>("n_pt_A");
-    auto ptr_n_pt_B = df_bins.Take<RVec<float>>("n_pt_B");
-    auto ptr_n_pt_AB = df_bins.Take<RVec<float>>("n_pt_AB");
+    auto ptr_n_pt_A = df_dpts.Take<RVec<float>>("n_pt_A");
+    auto ptr_n_pt_B = df_dpts.Take<RVec<float>>("n_pt_B");
+    auto ptr_n_pt_AB = df_dpts.Take<RVec<float>>("n_pt_AB");
     vector<RVec<float>> T_n_pt_A = Transpose(*ptr_n_pt_A);
     vector<RVec<float>> T_n_pt_B = Transpose(*ptr_n_pt_B);
     vector<RVec<float>> T_n_pt_AB = Transpose(*ptr_n_pt_AB);

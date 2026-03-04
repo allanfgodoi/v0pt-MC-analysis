@@ -1,3 +1,7 @@
+// Use the DoPlotCents function with the output file from RDF_ObsConstructor.cpp
+// USAGE EXAMPLE: DoPlotCents("/eos/user/a/afloresg/MC-studies/BB/ObsData.root", "/eos/user/a/afloresg/MC-studies/BB/Plots/PlotMain-BB-0005.pdf", "0005") "0005" is the centrality range
+// For the centralities, use: 0005, 0510, 1020, 2030, 3040, 4050, 5060, 6080, 80100
+
 #include <iostream>
 #include <type_traits>
 #include <iostream>
@@ -97,20 +101,25 @@ pair<TGraphAsymmErrors*, TGraphAsymmErrors*> csvToTGraph(TString fipflath){
     return {g_stat, g_syst};
 }
 
-void DoPlotMain(TString Filename, TString Savename){
-    
+void DoPlotCents(TString Filename, TString Savename, TString Cent){
     TFile *f = TFile::Open(Filename, "READ");
 
-    // v0(pT)
-    TGraph *gr_v0pt_pion = (TGraph*)f->Get("v0pt_ptref_1_pion");
-    TGraph *gr_v0pt_kaon = (TGraph*)f->Get("v0pt_ptref_1_kaon"); 
-    TGraph *gr_v0pt_proton = (TGraph*)f->Get("v0pt_ptref_1_proton");
-    TGraph *gr_v0pt_all = (TGraph*)f->Get("v0pt_ptref_1_all"); 
+    TString plotLabel = "B+B 5.36 TeV,   "; // Change colliding system here to the legend
+    if (Cent == "0005") plotLabel += "0-5%";
+    if (Cent == "0510") plotLabel += "5-10%";
+    if (Cent == "1020") plotLabel += "10-20%";
+    if (Cent == "2030") plotLabel += "20-30%";
+    if (Cent == "3040") plotLabel += "30-40%";
+    if (Cent == "4050") plotLabel += "40-50%";
+    if (Cent == "5060") plotLabel += "50-60%";
+    if (Cent == "6080") plotLabel += "60-80%";
+    if (Cent == "80100") plotLabel += "80-100%";
 
-    customize_TGraph(gr_v0pt_pion, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.9, 21, kRed, 0.8);
-    customize_TGraph(gr_v0pt_kaon, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.9, 22, kBlue, 0.8);
-    customize_TGraph(gr_v0pt_proton, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.9, 34, kGreen+2, 0.8);
-    customize_TGraph(gr_v0pt_all, "; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.9, 20, kBlack, 0.8);
+    // v0(pT)
+    TString str_v0pt_all = "v0pt_"; str_v0pt_all += Cent; str_v0pt_all += "_all";
+    TGraph *gr_v0pt_all = (TGraph*)f->Get(str_v0pt_all); 
+
+    customize_TGraph(gr_v0pt_all, "; p_{T} [GeV]; v_{0}(p_{T})", 0.5, 4.0, -0.2, 0.55, 20, kBlack, 0.8);
 
     auto c = new TCanvas("c", "c", 1100, 500);
     c->Divide(2, 1);
@@ -118,19 +127,10 @@ void DoPlotMain(TString Filename, TString Savename){
     // v0(pT) legend
     auto legend_v0pt_text = new TLegend(0.025, 0.98, 0.5, 0.82);
     legend_v0pt_text->SetTextSize(0.055);
-    legend_v0pt_text->AddEntry((TObject*)0, "He+He 5.36 TeV", "");
+    legend_v0pt_text->AddEntry((TObject*)0, plotLabel, "");
     legend_v0pt_text->AddEntry((TObject*)0, "p_{T}^{ref} 0.5-2 GeV,   #eta_{gap} = 1", "");
     legend_v0pt_text->SetBorderSize(0);
     legend_v0pt_text->SetFillStyle(0);
-
-    auto legend_v0pt_cents = new TLegend(0.103, 0.81, 0.5, 0.61);
-    legend_v0pt_cents->SetTextSize(0.034);
-    legend_v0pt_cents->AddEntry(gr_v0pt_pion, "#pi^{#pm}", "pfl");
-    legend_v0pt_cents->AddEntry(gr_v0pt_kaon, "K^{#pm}", "pfl");
-    legend_v0pt_cents->AddEntry(gr_v0pt_proton, "p,#bar{p}", "pfl");
-    legend_v0pt_cents->AddEntry(gr_v0pt_all, "#pi^{#pm},K^{#pm},p,#bar{p}", "pfl");
-    legend_v0pt_cents->SetBorderSize(0);
-    legend_v0pt_cents->SetFillStyle(0);
 
     auto legend_v0pt_label = new TLegend(0.78, 0.9, 0.93, 0.93);
     legend_v0pt_label->SetTextSize(0.055);
@@ -141,42 +141,25 @@ void DoPlotMain(TString Filename, TString Savename){
     // Drawing v0(pT) plot
     c->cd(1);
     gr_v0pt_all->Draw("AP");
-    gr_v0pt_pion->Draw("P SAME");
-    gr_v0pt_kaon->Draw("P SAME");
-    gr_v0pt_proton->Draw("P SAME");
     legend_v0pt_text->Draw();
-    legend_v0pt_cents->Draw();
     legend_v0pt_label->Draw();
     gPad->SetLogx();
     gPad->SetTopMargin(0.01);
 
     // sv0(pT)
-    TGraph *gr_sv0pt_pion = (TGraph*)f->Get("sv0pt_ptref_1_pion");
-    TGraph *gr_sv0pt_kaon = (TGraph*)f->Get("sv0pt_ptref_1_kaon"); 
-    TGraph *gr_sv0pt_proton = (TGraph*)f->Get("sv0pt_ptref_1_proton");
-    TGraph *gr_sv0pt_all = (TGraph*)f->Get("sv0pt_ptref_1_all");
 
-    customize_TGraph(gr_sv0pt_pion, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 15.0, 0.1, 10.0, 21, kRed, 0.8);
-    customize_TGraph(gr_sv0pt_kaon, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 10.0, 0.1, 10.0, 22, kBlue, 0.8);
-    customize_TGraph(gr_sv0pt_proton, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 10.0, 0.1, 10.0, 34, kGreen+2, 0.8);
-    customize_TGraph(gr_sv0pt_all, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.0, 10.0, 0.1, 10.0, 20, kBlack, 0.8);
+    TString str_sv0pt_all = "sv0pt_"; str_sv0pt_all += Cent; str_sv0pt_all += "_all";
+    TGraph *gr_sv0pt_all = (TGraph*)f->Get(str_sv0pt_all); 
+
+    customize_TGraph(gr_sv0pt_all, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.5, 4.0, -7, 20.0, 20, kBlack, 0.8);
 
     // sv0(pT) legend
     auto legend_sv0pt_text = new TLegend(0.025, 0.98, 0.5, 0.82);
     legend_sv0pt_text->SetTextSize(0.055);
-    legend_sv0pt_text->AddEntry((TObject*)0, "He+He 5.36 TeV", "");
+    legend_sv0pt_text->AddEntry((TObject*)0, plotLabel, "");
     legend_sv0pt_text->AddEntry((TObject*)0, "p_{T}^{ref} 0.5-2 GeV,   #eta_{gap} = 1", "");
     legend_sv0pt_text->SetBorderSize(0);
     legend_sv0pt_text->SetFillStyle(0);
-
-    auto legend_sv0pt_cents = new TLegend(0.103, 0.81, 0.5, 0.61);
-    legend_sv0pt_cents->SetTextSize(0.034);
-    legend_sv0pt_cents->AddEntry(gr_sv0pt_pion, "#pi^{#pm}", "pfl");
-    legend_sv0pt_cents->AddEntry(gr_sv0pt_kaon, "K^{#pm}", "pfl");
-    legend_sv0pt_cents->AddEntry(gr_sv0pt_proton, "p,#bar{p}", "pfl");
-    legend_sv0pt_cents->AddEntry(gr_sv0pt_all, "#pi^{#pm},K^{#pm},p,#bar{p}", "pfl");
-    legend_sv0pt_cents->SetBorderSize(0);
-    legend_sv0pt_cents->SetFillStyle(0);
 
     auto legend_sv0pt_label = new TLegend(0.78, 0.9, 0.93, 0.93);
     legend_sv0pt_label->SetTextSize(0.055);
@@ -186,12 +169,8 @@ void DoPlotMain(TString Filename, TString Savename){
 
     // Drawing v0(pT) plot
     c->cd(2);
-    gr_sv0pt_pion->Draw("AP");
-    gr_sv0pt_kaon->Draw("P SAME");
-    gr_sv0pt_proton->Draw("P SAME");
-    gr_sv0pt_all->Draw("P SAME");
+    gr_sv0pt_all->Draw("AP");
     legend_sv0pt_text->Draw();
-    legend_sv0pt_cents->Draw();
     legend_sv0pt_label->Draw();
     gPad->SetLogx();
     gPad->SetTopMargin(0.01);

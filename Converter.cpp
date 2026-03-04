@@ -1,3 +1,7 @@
+// Converts ampt events from .dat to .root file
+// USAGE EXAMPLE: Converter("/eos/cms/store/user/sdogra/ampt/inPutFiles/BB/ampt_1M.dat", "/eos/user/a/afloresg/MC-studies/BB/ampt_1M.root");
+// Do this to all .dat files and then merge the .root files with hadd
+
 void Converter(TString filename, TString savename){
 
     ifstream amptFile(filename.Data());
