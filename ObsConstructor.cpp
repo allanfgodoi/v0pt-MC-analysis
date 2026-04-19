@@ -1,5 +1,5 @@
-// 50-60% CENTRALITY: HFSUMET = [210, 375] GeV
-// 60-70% CENTRALITY: HFSUMET = [100, 210] GeV
+// USAGE EXAMPLE (0-5%): ObsConstructor(1.0, 105, 9999, 0.5, 2.0, {211, 321, 2212}, "0005", "/eos/cms/store/user/sdogra/ampt/inPutFiles/HeHe/*.dat", "/eos/user/a/afloresg/MC-studies/HeHe/ObsData.root")
+// ObsConstructor(eta-gap, Nch-min, Nch-max, pT-ref-min, pT-ref-max, {TargetPIDs}, "centrality-label", "input-files-pattern", "output-file")
 
 #include <cmath>
 #include "TMath.h"
@@ -137,18 +137,15 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
 
             int Nch = 0;
 
-            // 1st track loop to find event multiplicty Nch
+            // 1st track loop to find event multiplicty Nch (No filters except for centrality select criteria)
             for (int i=0; i<n_particles; i++){
                 int pid = evt_pid[i];
                 float px = evt_px[i];
                 float py = evt_py[i];
                 float pz = evt_pz[i];
 
-                // PID filter
-                if (targetPID.count(abs(pid)) == 0) continue;
-
                 double pt = sqrt(px*px + py*py);
-                if (pt < 0.5 || pt > 10.0) continue; // Kinematic filters pt. 1 (same as ATLAS)
+                if (pt <= 0.02) continue;
                 double theta = 0.0;
                 if (pt > 1e-5) theta = atan2(pt, pz); // Avoids division by zero
                 double eta = -log(tan(theta/2.0));
