@@ -78,7 +78,7 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
     TSystemFile* file;
     TRegexp re(basename, true);
 
-    while ((file == (TSystemFile*)next())){
+    while ((file = (TSystemFile*)next())){
         TString fname = file->GetName();
         if (!file->IsDirectory() && fname.Index(re) != kNPOS){
             files.push_back(dir + "/" + fname);
