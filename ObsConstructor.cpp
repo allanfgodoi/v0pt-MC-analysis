@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include "TMath.h"
+#include <unordered_set>
 using namespace std;
 
 vector<vector<float>> transpose(vector<vector<float>> x){
@@ -62,7 +63,7 @@ struct Gathered_Data{
     float mean_pt;
 };
 
-Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nch_max, float ptr_min, float ptr_max, int targetPID, vector<float> Xaxis_del){
+Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nch_max, float ptr_min, float ptr_max, unordered_set<int> targetPID, vector<float> Xaxis_del){
     TH1::AddDirectory(kFALSE);
 
     // Find input files
@@ -143,7 +144,8 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
                 float py = evt_py[i];
                 float pz = evt_pz[i];
 
-                if (targetPID != 0 && abs(pid) != targetPID) continue; // PID filter (if targetPID = 0 -> all charged)
+                // PID filter
+                if (targetPID.count(abs(pid)) == 0) continue;
 
                 double pt = sqrt(px*px + py*py);
                 if (pt < 0.5 || pt > 10.0) continue; // Kinematic filters pt. 1 (same as ATLAS)
@@ -172,7 +174,8 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
                 float py = evt_py[i];
                 float pz = evt_pz[i];
 
-                if (targetPID != 0 && abs(pid) != targetPID) continue; // PID filter (if targetPID = 0 -> all charged)
+                // PID filter
+                if (targetPID.count(abs(pid)) == 0) continue;
 
                 double pt = sqrt(px*px + py*py);
                 if (pt < 0.5 || pt > 10.0) continue; // Kinematic filters pt. 1 (same as ATLAS)
@@ -358,7 +361,7 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
 }
 
 // Thats the function we call to construct the observable
-void ObsConstructor(float Eta_gap, int Nch_min, int Nch_max, float pTr_Min, float pTr_Max, int TargetPID, TString Name, TString Filename, TString Savename){
+void ObsConstructor(float Eta_gap, int Nch_min, int Nch_max, float pTr_Min, float pTr_Max, unordered_set<int> TargetPID, TString Name, TString Filename, TString Savename){
     int B = 100; // Number of Poisson bootstrap samples
     // Defining bins and plot's x axes
     vector<float> Xaxis_del = {0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 1.98, 2.2, 2.38, 2.98, 3.8, 4.5, 6.0, 8.0, 10.0}; // Those are the END of each bin, not the middle
@@ -476,10 +479,14 @@ void ObsConstructor(float Eta_gap, int Nch_min, int Nch_max, float pTr_Min, floa
 
     TFile *save_file = new TFile(Savename, "UPDATE");
 
-    if (TargetPID == 0) Name += "_all";
-    if (abs(TargetPID) == 211) Name += "_pion";
-    if (abs(TargetPID) == 321) Name += "_kaon";
-    if (abs(TargetPID) == 2212) Name += "_proton";
+    if (TargetPID.size() == 1) {
+        int pid = *TargetPID.begin(); // É assim que pegamos o único elemento de um set
+        if (pid == 211) Name += "_pion";
+        else if (pid == 321) Name += "_kaon";
+        else if (pid == 2212) Name += "_proton";
+    } else {
+        Name += "_all";
+    }
 
     TString mean_pt_name = "mean_pt_";
     mean_pt_name += Name;
