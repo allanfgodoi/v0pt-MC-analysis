@@ -62,21 +62,28 @@ struct Gathered_Data{
     float mean_pt;
 };
 
-Gathered_Data DataGathering(float eta_gap, float ptr_min, float ptr_max, int targetPID, vector<float> Xaxis_del){
+Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nch_max, float ptr_min, float ptr_max, int targetPID, vector<float> Xaxis_del){
     TH1::AddDirectory(kFALSE);
-    TString filename = "/eos/user/a/afloresg/ampt_converted_data.root";
 
-    TFile *file = TFile::Open(filename);
-    if (!file || file->IsZombie()) std::cerr << "Cannot open ROOT file: " << filename << std::endl;
+    // Find input files
+    TString fp_pattern(Filename);
+    TString dir = gSystem->DirName(fp_pattern);
+    TString basename = gSystem->BaseName(fp_pattern);
 
-    // I am using TTreeReaders instead of the SetBranchAddress way that I used to do
-    TTreeReader reader("tree", file);
-    TTreeReaderValue<int> evtID(reader, "eventID");
-    TTreeReaderValue<int> n_particles(reader, "n_particles");
-    TTreeReaderArray<int> pids(reader, "pid");
-    TTreeReaderArray<float> pxs(reader, "px");
-    TTreeReaderArray<float> pys(reader, "py");
-    TTreeReaderArray<float> pzs(reader, "pz");
+    vector<TString> files;
+    TSystemDirectory directory("amptDir", dir);
+    TList* filelist = directory.GetListOfFiles();
+    TIter next(filelist);
+    TSystemFile* file;
+    TRegexp re(basename, true);
+
+    while ((file == (TSystemFile*)next())){
+        TString fname = file->GetName();
+        if (!file->IsDirectory() && fname.Index(re) != kNPOS){
+            files.push_back(dir + "/" + fname);
+        }
+    }
+    cout << "Found " << files.size() << " files" << endl;
 
     // Defining auxiliar constants
     int nBins = (Xaxis_del.size()-1);
@@ -100,107 +107,146 @@ Gathered_Data DataGathering(float eta_gap, float ptr_min, float ptr_max, int tar
     
     TProfile *PpT = new TProfile("PpT", "pT bins mean", nBins, Xaxis_del.data());
 
-    ifstream amptFile(filename.Data());
-    if (!amptFile.is_open()) {
-        std::cerr << "Cannot open AMPT file: " << filename << std::endl;
-    }
+    int fCounter = 1;
 
-    // Event loop
-    int eventCount = 0;
-    while (reader.Next()){
-        eventCount++;
-        if (eventCount % 1000 == 0) cout << "Processing event: " << eventCount << endl;
+    for (auto& fname : files){
+        ifstream amptFile(fname.Data());
 
-        vector<float> n_pt_A(nBins, 0.0); // Define vector to hold the fractions of pT in the event
-        vector<float> n_pt_B(nBins, 0.0);
-        vector<float> n_pt_AB(nBins, 0.0);
-        vector<float> Vec_trkPt_A, Vec_trkPt_B;
-        vector<float> Vec_trkW_A, Vec_trkW_B;
+        // AMPT header aux variables
+        int eventID, dummy, n_particles, npartP, npartT, nElaP, nInElaP, nElaT, nInElaT;
+        float b, unused, x, y, z, t;
 
-        int nParts = *n_particles;
+        while (amptFile >> eventID >> dummy >> n_particles >> b >> npartP >> npartT >> nElaP >> nInElaP >> nElaT >> nInElaT >> unused){
+            vector<int> evt_pid;
+            vector<float> evt_px, evt_py, evt_pz;
 
-        // Track loop
-        for (int i=0; i<nParts; i++){
-            int pid = pids[i];
-            float px = pxs[i];
-            float py = pys[i];
-            float pz = pzs[i];
+            if (eventID % 1000 == 0) cout << "File " << fCounter << " - " << "Processing event: " << eventID << endl;
 
-            if (targetPID != 0 && abs(pid) != targetPID) continue; // PID filter (if targetPID = 0 -> all charged)
+            for (int i = 0; i < n_particles; i++) {
+                // Holder variables for each track
+                int h_pid;
+                float h_px, h_py, h_pz, h_E;
 
-            double pt = sqrt(px*px + py*py);
-            double theta = 0.0;
-            if (pt > 1e-5) theta = atan2(pt, pz); // Avoids division by zero
-            double eta = -log(tan(theta/2.0));
+                amptFile >> h_pid >> h_px >> h_py >> h_pz >> h_E >> x >> y >> z >> t;
+                evt_pid.push_back(h_pid);
+                evt_px.push_back(h_px);
+                evt_py.push_back(h_py);
+                evt_pz.push_back(h_pz);
+            }
 
-            if (pt < 0.5 || pt > 10.0 || fabs(eta) > 2.4) continue; // Kinematic filters (same as ATLAS)
+            int Nch = 0;
+
+            // 1st track loop to find event multiplicty Nch
+            for (int i=0; i<n_particles; i++){
+                int pid = evt_pid[i];
+                float px = evt_px[i];
+                float py = evt_py[i];
+                float pz = evt_pz[i];
+
+                if (targetPID != 0 && abs(pid) != targetPID) continue; // PID filter (if targetPID = 0 -> all charged)
+
+                double pt = sqrt(px*px + py*py);
+                if (pt < 0.5 || pt > 10.0) continue; // Kinematic filters pt. 1 (same as ATLAS)
+                double theta = 0.0;
+                if (pt > 1e-5) theta = atan2(pt, pz); // Avoids division by zero
+                double eta = -log(tan(theta/2.0));
+
+                // Nch definition
+                if (fabs(eta) > 3.0 && fabs(eta) < 5.0) Nch++;
+            }
+
+            if (Nch < nch_min || Nch > nch_max) continue; // Centrality selection
+
+            vector<float> n_pt_A(nBins, 0.0); // Define vector to hold the fractions of pT in the event
+            vector<float> n_pt_B(nBins, 0.0);
+            vector<float> n_pt_AB(nBins, 0.0);
+            vector<float> Vec_trkPt_A, Vec_trkPt_B;
+            vector<float> Vec_trkW_A, Vec_trkW_B;
 
             float corrFac = 1.0; // Monte Carlo events. I'm using this to reuse the same code as data
 
-            // Subevent selection
-            bool isInA = (eta >= -2.4 && eta <= -eta_gap/2.0);
-            bool isInB = (eta >= eta_gap/2.0 && eta <= 2.4);
-            if (isInA){
-                if (pt >= ptr_min && pt <= ptr_max){
-                    Vec_trkPt_A.push_back(pt);
-                    Vec_trkW_A.push_back(corrFac);
-                    hist_all_pt_ref_AB->Fill(pt, corrFac);
-                    hist_all_pt_ref_A->Fill(pt, corrFac);
+            // 2nd track loop, now to calculate the quantities
+            for (int i=0; i<n_particles; i++){
+                int pid = evt_pid[i];
+                float px = evt_px[i];
+                float py = evt_py[i];
+                float pz = evt_pz[i];
+
+                if (targetPID != 0 && abs(pid) != targetPID) continue; // PID filter (if targetPID = 0 -> all charged)
+
+                double pt = sqrt(px*px + py*py);
+                if (pt < 0.5 || pt > 10.0) continue; // Kinematic filters pt. 1 (same as ATLAS)
+                double theta = 0.0;
+                if (pt > 1e-5) theta = atan2(pt, pz); // Avoids division by zero
+                double eta = -log(tan(theta/2.0));
+
+                if (fabs(eta) > 2.4) continue; // Kinematic filter pt. 2 (same as ATLAS)
+
+                // Subevent selection
+                bool isInA = (eta >= -2.4 && eta <= -eta_gap/2.0);
+                bool isInB = (eta >= eta_gap/2.0 && eta <= 2.4);
+                if (isInA){
+                    if (pt >= ptr_min && pt <= ptr_max){
+                        Vec_trkPt_A.push_back(pt);
+                        Vec_trkW_A.push_back(corrFac);
+                        hist_all_pt_ref_AB->Fill(pt, corrFac);
+                        hist_all_pt_ref_A->Fill(pt, corrFac);
+                    }
+                    hist_pt_A->Fill(pt, corrFac);
+                    hist_pt_AB->Fill(pt, corrFac);
+                    hist_all_pt_AB->Fill(pt, corrFac);
+                    hist_all_pt_A->Fill(pt, corrFac);
+                    PpT->Fill(pt, pt, corrFac);
                 }
-                hist_pt_A->Fill(pt, corrFac);
-                hist_pt_AB->Fill(pt, corrFac);
-                hist_all_pt_AB->Fill(pt, corrFac);
-                hist_all_pt_A->Fill(pt, corrFac);
-                PpT->Fill(pt, pt, corrFac);
-            }
-            if (isInB){
-                if (pt >= ptr_min && pt <= ptr_max){
-                    Vec_trkPt_B.push_back(pt);
-                    Vec_trkW_B.push_back(corrFac);
-                    hist_all_pt_ref_AB->Fill(pt, corrFac);
-                    hist_all_pt_ref_B->Fill(pt, corrFac);
+                if (isInB){
+                    if (pt >= ptr_min && pt <= ptr_max){
+                        Vec_trkPt_B.push_back(pt);
+                        Vec_trkW_B.push_back(corrFac);
+                        hist_all_pt_ref_AB->Fill(pt, corrFac);
+                        hist_all_pt_ref_B->Fill(pt, corrFac);
+                    }
+                    hist_pt_B->Fill(pt, corrFac);
+                    hist_pt_AB->Fill(pt, corrFac);
+                    hist_all_pt_AB->Fill(pt, corrFac);
+                    hist_all_pt_B->Fill(pt, corrFac);
+                    PpT->Fill(pt, pt, corrFac);
                 }
-                hist_pt_B->Fill(pt, corrFac);
-                hist_pt_AB->Fill(pt, corrFac);
-                hist_all_pt_AB->Fill(pt, corrFac);
-                hist_all_pt_B->Fill(pt, corrFac);
-                PpT->Fill(pt, pt, corrFac);
             }
+
+            // Scaling the created hist and taking the bins content to the array
+            if (hist_pt_A->Integral() != 0) hist_pt_A->Scale(1/hist_pt_A->Integral()); // Defining a normalized histogram
+            if (hist_pt_B->Integral() != 0) hist_pt_B->Scale(1/hist_pt_B->Integral());
+            if (hist_pt_AB->Integral() != 0) hist_pt_AB->Scale(1/hist_pt_AB->Integral());
+            for (int i=0; i<nBins; i++){
+                n_pt_A[i] = hist_pt_A->GetBinContent(i+1);
+                n_pt_B[i] = hist_pt_B->GetBinContent(i+1);
+                n_pt_AB[i] = hist_pt_AB->GetBinContent(i+1);
+            }
+            hist_pt_A->Reset();
+            hist_pt_B->Reset();
+            hist_pt_AB->Reset();
+            // Setting the desired vectors
+            Vec_n_pt_A.push_back(n_pt_A);
+            Vec_n_pt_B.push_back(n_pt_B);
+            Vec_n_pt_AB.push_back(n_pt_AB);
+
+            Matrix_trkPt_A.push_back(Vec_trkPt_A);
+            Matrix_trkPt_B.push_back(Vec_trkPt_B);
+            Matrix_trkW_A.push_back(Vec_trkW_A);
+            Matrix_trkW_B.push_back(Vec_trkW_B);
+
+            Vec_trkPt_A.clear();
+            Vec_trkPt_B.clear();
+            Vec_trkW_A.clear();
+            Vec_trkW_B.clear();
+            Vec_trkPt_A.shrink_to_fit();
+            Vec_trkPt_B.shrink_to_fit();
+            Vec_trkW_A.shrink_to_fit();
+            Vec_trkW_B.shrink_to_fit();
         }
 
-         // Scaling the created hist and taking the bins content to the array
-        if (hist_pt_A->Integral() != 0) hist_pt_A->Scale(1/hist_pt_A->Integral()); // Defining a normalized histogram
-        if (hist_pt_B->Integral() != 0) hist_pt_B->Scale(1/hist_pt_B->Integral());
-        if (hist_pt_AB->Integral() != 0) hist_pt_AB->Scale(1/hist_pt_AB->Integral());
-        for (int i=0; i<nBins; i++){
-            n_pt_A[i] = hist_pt_A->GetBinContent(i+1);
-            n_pt_B[i] = hist_pt_B->GetBinContent(i+1);
-            n_pt_AB[i] = hist_pt_AB->GetBinContent(i+1);
-        }
-        hist_pt_A->Reset();
-        hist_pt_B->Reset();
-        hist_pt_AB->Reset();
-        // Setting the desired vectors
-        Vec_n_pt_A.push_back(n_pt_A);
-        Vec_n_pt_B.push_back(n_pt_B);
-        Vec_n_pt_AB.push_back(n_pt_AB);
-
-        Matrix_trkPt_A.push_back(Vec_trkPt_A);
-        Matrix_trkPt_B.push_back(Vec_trkPt_B);
-        Matrix_trkW_A.push_back(Vec_trkW_A);
-        Matrix_trkW_B.push_back(Vec_trkW_B);
-
-        Vec_trkPt_A.clear();
-        Vec_trkPt_B.clear();
-        Vec_trkW_A.clear();
-        Vec_trkW_B.clear();
-        Vec_trkPt_A.shrink_to_fit();
-        Vec_trkPt_B.shrink_to_fit();
-        Vec_trkW_A.shrink_to_fit();
-        Vec_trkW_B.shrink_to_fit();
+    fCounter++;
     }
-
-    amptFile.close();
 
     float Mean_pt = hist_all_pt_AB->GetMean();
     float Mean_pt_A = hist_all_pt_A->GetMean();
@@ -243,7 +289,7 @@ Gathered_Data DataGathering(float eta_gap, float ptr_min, float ptr_max, int tar
         Vec_dtrkPt_B.clear();
     }
 
-    int nValid_Events = Matrix_trkPt_A.size(); // Non-zero events. Subset A and B have de same number of events
+    int nValid_Events = Matrix_trkPt_A.size(); // Non-zero events. Subset A and B have the same number of events
 
     vector<float> Vec_dPt_ref_A(nValid_Events, 0.0);
     vector<float> Vec_dPt_ref_B(nValid_Events, 0.0);
@@ -312,12 +358,12 @@ Gathered_Data DataGathering(float eta_gap, float ptr_min, float ptr_max, int tar
 }
 
 // Thats the function we call to construct the observable
-void ObsConstructor(float Eta_gap, float pTr_Min, float pTr_Max, int TargetPID, TString Name, TString Savename){
+void ObsConstructor(float Eta_gap, int Nch_min, int Nch_max, float pTr_Min, float pTr_Max, int TargetPID, TString Name, TString Filename, TString Savename){
     int B = 100; // Number of Poisson bootstrap samples
     // Defining bins and plot's x axes
     vector<float> Xaxis_del = {0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 1.98, 2.2, 2.38, 2.98, 3.8, 4.5, 6.0, 8.0, 10.0}; // Those are the END of each bin, not the middle
     int nBins = (Xaxis_del.size()-1);
-    Gathered_Data gData = DataGathering(Eta_gap, pTr_Min, pTr_Max, TargetPID, Xaxis_del);
+    Gathered_Data gData = DataGathering(Filename, Eta_gap, Nch_min, Nch_max, pTr_Min, pTr_Max, TargetPID, Xaxis_del);
     vector<float> pT_axis = gData.pT_axis;
     vector<float> vec_dPt_A = gData.vec_dPt_A;
     vector<float> vec_dPt_B = gData.vec_dPt_B;
