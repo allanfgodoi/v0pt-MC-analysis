@@ -540,8 +540,8 @@ void ObsConstructor(float Eta_gap, int Nch_min, int Nch_max, float pTr_Min, floa
     TString Savename_txt = Savename;
     Savename_txt.ReplaceAll(".root", ".txt");
 
-    bool txt_file_exists = !gSystem->AccessPathName(txt_filename.Data());
-    ofstream txt_file(txt_filename.Data(), ios::app);
+    bool txt_file_exists = !gSystem->AccessPathName(Savename_txt.Data());
+    ofstream txt_file(Savename_txt.Data(), ios::app);
         if (txt_file_exists){
             txt_file << "\n\n";
             txt_file << "--------------------------------------------------\n";
