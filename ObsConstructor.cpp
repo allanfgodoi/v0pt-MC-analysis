@@ -4,6 +4,7 @@
 #include <cmath>
 #include "TMath.h"
 #include <unordered_set>
+#include <fstream>
 using namespace std;
 
 vector<vector<float>> transpose(vector<vector<float>> x){
@@ -61,6 +62,8 @@ struct Gathered_Data{
     vector<vector<float>> vec_dn_pt_B;
     float mean_pt_ref;
     float mean_pt;
+    double total_tracks;
+    vector<double> tracks_per_bin;
 };
 
 Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nch_max, float ptr_min, float ptr_max, unordered_set<int> targetPID, vector<float> Xaxis_del){
@@ -109,6 +112,7 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
     TProfile *PpT = new TProfile("PpT", "pT bins mean", nBins, Xaxis_del.data());
 
     int fCounter = 1;
+    int N_all_valid_tracks = 0;
 
     for (auto& fname : files){
         ifstream amptFile(fname.Data());
@@ -334,6 +338,12 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
         }
     }
 
+    vector<double> Tracks_per_bin(nBins, 0.0);
+    for (int i=0; i<nBins; i++){
+        Tracks_per_bin[i] = PpT->GetBinEntries(i+1);
+    }
+    double Total_tracks = PpT->GetEntries();
+
     delete hist_all_pt_ref_A;
     delete hist_all_pt_ref_B;
     delete hist_all_pt_ref_AB;
@@ -354,6 +364,8 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
     struct_data.vec_dn_pt_B = Vec_dn_pt_B;
     struct_data.mean_pt_ref = Mean_pt_ref;
     struct_data.mean_pt = Mean_pt;
+    struct_data.total_tracks = Total_tracks;
+    struct_data.tracks_per_bin = Tracks_per_bin;
     return struct_data;
 }
 
@@ -374,6 +386,8 @@ void ObsConstructor(float Eta_gap, int Nch_min, int Nch_max, float pTr_Min, floa
     vector<vector<float>> vec_dn_pt_B = gData.vec_dn_pt_B;
     float mean_pt_ref = gData.mean_pt_ref;
     float mean_pt = gData.mean_pt;
+    double total_tracks = gData.total_tracks;
+    vector<double> tracks_per_bin = gData.tracks_per_bin;
 
     int nEvents = vec_dPt_A.size();
 
@@ -522,4 +536,22 @@ void ObsConstructor(float Eta_gap, int Nch_min, int Nch_max, float pTr_Min, floa
 
     cout << "mean_pt = " << mean_pt << endl;
     save_file->Close();
+
+    TString Savename_txt = Savename;
+    Savename_txt.ReplaceAll(".root", ".txt");
+
+    bool txt_file_exists = !gSystem->AccessPathName(txt_filename.Data());
+    ofstream txt_file(txt_filename.Data(), ios::app);
+        if (txt_file_exists){
+            txt_file << "\n\n";
+            txt_file << "--------------------------------------------------\n";
+            txt_file << "\n";
+        }
+        txt_file << "Centrality: " << Name << "\n";
+        txt_file << "Total tracks: " << total_tracks << "\n";
+        txt_file << "Tracks per bin:\n";
+        for (int i = 0; i < tracks_per_bin.size(); i++) {
+            txt_file << "  Bin " << i << ": " << tracks_per_bin[i] << " tracks\n";
+        }
+        txt_file.close();
 }
