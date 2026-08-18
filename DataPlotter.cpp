@@ -101,408 +101,275 @@ pair<TGraphAsymmErrors*, TGraphAsymmErrors*> csvToTGraph(TString fipflath){
     return {g_stat, g_syst};
 }
 
-void DoPlotCents(TString Filename, TString Savename, TString Cent){
-    TFile *f = TFile::Open(Filename, "READ");
+void DoPlotSystems(){
+    
+    const int nSystems = 9;
+    const char* input_filename[nSystems] = {"HeHe_data.root", "LiLi_data.root", "BB_data.root", "OO_data.root", "NeNe_data.root", "MgMg_data.root", "ArAr_data.root", "CaCa_data.root", "KrKr_data.root"};
+    TString system_name[nSystems] = {"HeHe", "LiLi", "BB", "OO", "NeNe", "MgMg", "ArAr", "CaCa", "KrKr"};
 
-    TString plotLabel = "B+B 5.36 TeV,   "; // Change colliding system here to the legend
-    if (Cent == "0005") plotLabel += "0-5%";
-    if (Cent == "0510") plotLabel += "5-10%";
-    if (Cent == "1020") plotLabel += "10-20%";
-    if (Cent == "2030") plotLabel += "20-30%";
-    if (Cent == "3040") plotLabel += "30-40%";
-    if (Cent == "4050") plotLabel += "40-50%";
-    if (Cent == "5060") plotLabel += "50-60%";
-    if (Cent == "6080") plotLabel += "60-80%";
-    if (Cent == "80100") plotLabel += "80-100%";
+    // Configurações das Centralidades
+    const int nCents = 7;
+    TString cent_bins[nCents]   = {"0005", "0510", "1020", "2030", "3040", "4050", "6080"};
+    TString cent_labels[nCents] = {"0-5%", "5-10%", "10-20%", "20-30%", "30-40%", "40-50%", "60-80%"};
+    
+    // Arrays para diferenciar visualmente cada centralidade
+    int colors[nCents]  = {kBlack, kRed, kBlue, kGreen+2, kMagenta, kOrange+7, kCyan+1};
+    int markers[nCents] = {20, 21, 22, 23, 33, 34, 29};
 
-    // v0(pT)
-    TString str_v0pt_all = "v0pt_"; str_v0pt_all += Cent; str_v0pt_all += "_all";
-    TGraph *gr_v0pt_all = (TGraph*)f->Get(str_v0pt_all); 
+    for (int i = 0; i < nSystems; i++){
+        string input_filepath = "./Data/"; input_filepath += input_filename[i];
+        TFile *f = TFile::Open(input_filepath.c_str(), "READ");
+        
+        // Verifica se o arquivo abriu corretamente para evitar falhas silenciosas
+        if (!f || f->IsZombie()) {
+            printf("Aviso: Nao foi possivel abrir o arquivo %s\n", input_filepath.c_str());
+            continue;
+        }
 
-    customize_TGraph(gr_v0pt_all, "; p_{T} [GeV]; v_{0}(p_{T})", 0.5, 4.0, -0.2, 0.55, 20, kBlack, 0.8);
+        auto c = new TCanvas("c", Form("c_%s", system_name[i].Data()), 1100, 500);
+        c->Divide(2, 1);
 
-    auto c = new TCanvas("c", "c", 1100, 500);
+        // Uso de TMultiGraph para lidar com múltiplos gráficos no mesmo eixo
+        TMultiGraph *mg_v0pt = new TMultiGraph();
+        mg_v0pt->SetTitle("v_{0}(p_{T}); p_{T}; v_{0}(p_{T})");
+        
+        TMultiGraph *mg_sv0pt = new TMultiGraph();
+        mg_sv0pt->SetTitle("v_{0}(p_{T})/v_{0}; p_{T}; v_{0}(p_{T})/v_{0}");
+
+        // Legenda de parâmetros do sistema (igual a anterior)
+        TString legend_text = system_name[i] + " 5.36 GeV";
+        auto legend_syst_params = new TLegend(0.025, 0.88, 0.5, 0.76); // Levemente ajustada para caber melhor
+        legend_syst_params->SetTextSize(0.045);
+        legend_syst_params->AddEntry((TObject*)0, legend_text, "");
+        legend_syst_params->AddEntry((TObject*)0, "p_{T}^{ref} 0.5-2 GeV    #eta_{gap} = 1", "");
+        legend_syst_params->SetBorderSize(0);
+        legend_syst_params->SetFillStyle(0);
+
+        // Nova legenda para as centralidades
+        auto legend_cent = new TLegend(0.125, 0.755, 0.5, 0.385);
+        legend_cent->SetBorderSize(0);
+        legend_cent->SetFillStyle(0);
+        legend_cent->SetTextSize(0.04);
+
+        // Loop sobre as centralidades para buscar e formatar cada TGraph
+        for (int j = 0; j < nCents; j++){
+            // Formata o nome do objeto (ex: v0pt_0005_all, v0pt_0510_all)
+            TString g_name_v0  = Form("v0pt_%s_all",  cent_bins[j].Data());
+            TString g_name_sv0 = Form("sv0pt_%s_all", cent_bins[j].Data());
+
+            TGraphErrors *gr_v0pt  = (TGraphErrors*)f->Get(g_name_v0);
+            TGraphErrors *gr_sv0pt = (TGraphErrors*)f->Get(g_name_sv0);
+
+            if (gr_v0pt && gr_sv0pt) {
+                // Formatação visual v0pt
+                gr_v0pt->SetMarkerColor(colors[j]);
+                gr_v0pt->SetLineColor(colors[j]);
+                gr_v0pt->SetMarkerStyle(markers[j]);
+                gr_v0pt->SetMarkerSize(0.6);
+                mg_v0pt->Add(gr_v0pt);
+
+
+                // Formatação visual sv0pt
+                gr_sv0pt->SetMarkerColor(colors[j]);
+                gr_sv0pt->SetLineColor(colors[j]);
+                gr_sv0pt->SetMarkerStyle(markers[j]);
+                gr_sv0pt->SetMarkerSize(0.6);
+                mg_sv0pt->Add(gr_sv0pt);
+                
+                // Adiciona na legenda (apenas precisa do primeiro, já que as cores são idênticas)
+                legend_cent->AddEntry(gr_v0pt, cent_labels[j], "lp");
+            } else {
+                printf("  Aviso: Graficos %s ausentes no arquivo %s\n", cent_bins[j].Data(), input_filename[i]);
+            }
+        }
+
+        // --- Desenho do Pad 1 (v0pt) ---
+        c->cd(1);
+        gPad->SetLogx();
+        mg_v0pt->Draw("AP"); // "A" desenha os eixos para o MultiGraph
+        mg_v0pt->GetXaxis()->SetLimits(0.485, 3.6);
+        mg_v0pt->SetMinimum(-0.16);
+        mg_v0pt->SetMaximum(0.55);
+        mg_v0pt->GetXaxis()->SetLabelFont(42);
+        //mg_v0pt->GetXaxis()->SetLabelSize(0.05);
+        //mg_v0pt->GetXaxis()->SetTitleSize(0.06);
+        mg_v0pt->GetXaxis()->SetTitleFont(42);
+        mg_v0pt->GetXaxis()->CenterTitle(true);
+        mg_v0pt->GetYaxis()->SetLabelFont(42);
+        //mg_v0pt->GetYaxis()->SetLabelSize(0.05);
+        //mg_v0pt->GetYaxis()->SetTitleSize(0.06);
+        mg_v0pt->GetYaxis()->SetTitleOffset(1.10);
+        mg_v0pt->GetYaxis()->SetTitleFont(42);
+        mg_v0pt->GetYaxis()->CenterTitle(true);
+        legend_syst_params->Draw();
+        legend_cent->Draw();
+
+        // --- Desenho do Pad 2 (sv0pt) ---
+        c->cd(2);
+        gPad->SetLogx();
+        mg_sv0pt->Draw("AP");
+        mg_sv0pt->GetXaxis()->SetLimits(0.485, 4.0);
+        mg_sv0pt->SetMinimum(-7.0);
+        mg_sv0pt->SetMaximum(30.0);
+        mg_sv0pt->GetXaxis()->SetLabelFont(42);
+        //mg_sv0pt->GetXaxis()->SetLabelSize(0.05);
+        //mg_sv0pt->GetXaxis()->SetTitleSize(0.06);
+        mg_sv0pt->GetXaxis()->SetTitleFont(42);
+        mg_sv0pt->GetXaxis()->CenterTitle(true);
+        mg_sv0pt->GetYaxis()->SetLabelFont(42);
+        //mg_sv0pt->GetYaxis()->SetLabelSize(0.05);
+        //mg_sv0pt->GetYaxis()->SetTitleSize(0.06);
+        mg_sv0pt->GetYaxis()->SetTitleOffset(1.10);
+        mg_sv0pt->GetYaxis()->SetTitleFont(42);
+        mg_sv0pt->GetYaxis()->CenterTitle(true);
+        legend_syst_params->Draw();
+        legend_cent->Draw();
+
+        // Salvar e limpar
+        TString saveplot_path = "./Plots/" + system_name[i] + ".pdf";
+        gStyle->SetOptFit(0);
+        gStyle->SetOptStat(0);
+        //c->Range(0.04000706,-0.4080692,0.7405774,1.786744);
+        c->SetFillColor(0);
+        c->SetBorderMode(0);
+        c->SetBorderSize(0);
+        c->SetTickx(1);
+        c->SetTicky(1);
+        c->SetLeftMargin(0.1650854);
+        c->SetRightMargin(0.0341556);
+        c->SetTopMargin(0.08508404);
+        c->SetBottomMargin(0.1859244);
+        c->SetFrameBorderMode(0);
+        c->SetFrameBorderMode(0);
+        c->Update();
+        c->SaveAs(saveplot_path);
+        
+        delete c; // Limpa o canvas
+        f->Close(); // Fecha o arquivo para evitar vazamento de memória (memory leak)
+    }
+}
+
+void DoPlotCentrality() {
+    const int nSystems = 9;
+    const char* input_filename[nSystems] = {"HeHe_data.root", "LiLi_data.root", "BB_data.root", "OO_data.root", "NeNe_data.root", "MgMg_data.root", "ArAr_data.root", "CaCa_data.root", "KrKr_data.root"};
+    TString system_name[nSystems] = {"HeHe", "LiLi", "BB", "OO", "NeNe", "MgMg", "ArAr", "CaCa", "KrKr"};
+    
+    // Arrays para diferenciar visualmente cada sistema
+    int colors[nSystems] = {kBlack, kRed, kBlue, kGreen+2, kMagenta, kCyan+1, kOrange+7, kViolet, kAzure+7};
+    int markers[nSystems] = {20, 21, 22, 23, 33, 34, 29, 20, 21}; 
+
+    // TMultiGraph resolve o problema de escala automática dos eixos para múltiplos gráficos
+    TMultiGraph *mg_v0pt = new TMultiGraph();
+    mg_v0pt->SetTitle("v_{0}(p_{T}); p_{T}; v_{0}(p_{T})");
+    
+    TMultiGraph *mg_sv0pt = new TMultiGraph();
+    mg_sv0pt->SetTitle("v_{0}(p_{T})/v_{0}; p_{T}; v_{0}(p_{T})/v_{0}");
+
+    // Legenda para os sistemas (desenhada no segundo painel ou no primeiro, onde preferir)
+    auto legend_systems = new TLegend(0.125, 0.72, 0.5, 0.35);
+    legend_systems->SetBorderSize(0);
+    legend_systems->SetFillStyle(0);
+    legend_systems->SetTextSize(0.04);
+
+    for (int i = 0; i < nSystems; i++) {
+        string input_filepath = "./Data/"; input_filepath += input_filename[i];
+        TFile *f = TFile::Open(input_filepath.c_str(), "READ");
+        
+        // Verificação de segurança caso o arquivo não exista
+        if (!f || f->IsZombie()) continue; 
+
+        TGraphErrors *gr_v0pt = (TGraphErrors*)f->Get("v0pt_0005_all");
+        TGraphErrors *gr_sv0pt = (TGraphErrors*)f->Get("sv0pt_0005_all");
+
+        // Aplicando as cores e marcadores
+        gr_v0pt->SetMarkerColor(colors[i]);
+        gr_v0pt->SetLineColor(colors[i]);
+        gr_v0pt->SetMarkerStyle(markers[i]);
+        gr_v0pt->SetMarkerSize(0.6);
+        
+        gr_sv0pt->SetMarkerColor(colors[i]);
+        gr_sv0pt->SetLineColor(colors[i]);
+        gr_sv0pt->SetMarkerStyle(markers[i]);
+        gr_sv0pt->SetMarkerSize(0.6);
+
+        // Adicionando os gráficos aos MultiGraphs
+        mg_v0pt->Add(gr_v0pt);
+        mg_sv0pt->Add(gr_sv0pt);
+
+        // Adicionando à legenda global
+        legend_systems->AddEntry(gr_v0pt, system_name[i], "lp");
+    }
+
+    // Criando o Canvas FORA do loop para colocar todos no mesmo lugar
+    auto c = new TCanvas("c_all", "All Collision Systems", 1100, 500);
     c->Divide(2, 1);
 
-    // v0(pT) legend
-    auto legend_v0pt_text = new TLegend(0.025, 0.98, 0.5, 0.82);
-    legend_v0pt_text->SetTextSize(0.055);
-    legend_v0pt_text->AddEntry((TObject*)0, plotLabel, "");
-    legend_v0pt_text->AddEntry((TObject*)0, "p_{T}^{ref} 0.5-2 GeV,   #eta_{gap} = 1", "");
-    legend_v0pt_text->SetBorderSize(0);
-    legend_v0pt_text->SetFillStyle(0);
+    // Legenda de parâmetros fixos (usada no primeiro pad)
+    auto legend_syst_params = new TLegend(0.025, 0.88, 0.5, 0.76);
+    legend_syst_params->SetTextSize(0.045);
+    legend_syst_params->AddEntry((TObject*)0, "5.36 GeV   0-5% centrality", "");
+    legend_syst_params->AddEntry((TObject*)0, "p_{T}^{ref} 0.5-2 GeV    #eta_{gap}=1", "");
+    legend_syst_params->SetBorderSize(0);
+    legend_syst_params->SetFillStyle(0);
 
-    auto legend_v0pt_label = new TLegend(0.78, 0.9, 0.93, 0.93);
-    legend_v0pt_label->SetTextSize(0.055);
-    legend_v0pt_label->AddEntry((TObject*)0, "(a)", "");
-    legend_v0pt_label->SetBorderSize(0);
-    legend_v0pt_label->SetFillStyle(0);
-
-    // Drawing v0(pT) plot
+    // --- PAINEL 1: v0(pT) ---
     c->cd(1);
-    gr_v0pt_all->Draw("AP");
-    legend_v0pt_text->Draw();
-    legend_v0pt_label->Draw();
     gPad->SetLogx();
-    gPad->SetTopMargin(0.01);
+    mg_v0pt->Draw("AP"); // "A" desenha os eixos, "P" desenha os pontos
+    mg_v0pt->GetXaxis()->SetLimits(0.485, 10.0);
+    //mg_v0pt->SetMaximum(0.23);
+    mg_v0pt->GetXaxis()->SetLabelFont(42);
+    //mg_v0pt->GetXaxis()->SetLabelSize(0.05);
+    //mg_v0pt->GetXaxis()->SetTitleSize(0.06);
+    mg_v0pt->GetXaxis()->SetTitleFont(42);
+    mg_v0pt->GetXaxis()->CenterTitle(true);
+    mg_v0pt->GetYaxis()->SetLabelFont(42);
+    //mg_v0pt->GetYaxis()->SetLabelSize(0.05);
+    //mg_v0pt->GetYaxis()->SetTitleSize(0.06);
+    mg_v0pt->GetYaxis()->SetTitleOffset(1.10);
+    mg_v0pt->GetYaxis()->SetTitleFont(42);
+    mg_v0pt->GetYaxis()->CenterTitle(true);
+    legend_syst_params->Draw();
+    legend_systems->Draw();
 
-    // sv0(pT)
-
-    TString str_sv0pt_all = "sv0pt_"; str_sv0pt_all += Cent; str_sv0pt_all += "_all";
-    TGraph *gr_sv0pt_all = (TGraph*)f->Get(str_sv0pt_all); 
-
-    customize_TGraph(gr_sv0pt_all, "; p_{T} [GeV]; v_{0}(p_{T})/v_{0}", 0.5, 4.0, -7, 20.0, 20, kBlack, 0.8);
-
-    // sv0(pT) legend
-    auto legend_sv0pt_text = new TLegend(0.025, 0.98, 0.5, 0.82);
-    legend_sv0pt_text->SetTextSize(0.055);
-    legend_sv0pt_text->AddEntry((TObject*)0, plotLabel, "");
-    legend_sv0pt_text->AddEntry((TObject*)0, "p_{T}^{ref} 0.5-2 GeV,   #eta_{gap} = 1", "");
-    legend_sv0pt_text->SetBorderSize(0);
-    legend_sv0pt_text->SetFillStyle(0);
-
-    auto legend_sv0pt_label = new TLegend(0.78, 0.9, 0.93, 0.93);
-    legend_sv0pt_label->SetTextSize(0.055);
-    legend_sv0pt_label->AddEntry((TObject*)0, "(b)", "");
-    legend_sv0pt_label->SetBorderSize(0);
-    legend_sv0pt_label->SetFillStyle(0);
-
-    // Drawing v0(pT) plot
+    // --- PAINEL 2: v0(pT)/v0 ---
     c->cd(2);
-    gr_sv0pt_all->Draw("AP");
-    legend_sv0pt_text->Draw();
-    legend_sv0pt_label->Draw();
     gPad->SetLogx();
-    gPad->SetTopMargin(0.01);
+    mg_sv0pt->Draw("AP");
+    mg_sv0pt->GetXaxis()->SetLimits(0.485, 10.0);
+    //mg_sv0pt->SetMaximum(14.0);
+    mg_sv0pt->GetXaxis()->SetLabelFont(42);
+    //mg_sv0pt->GetXaxis()->SetLabelSize(0.05);
+    //mg_sv0pt->GetXaxis()->SetTitleSize(0.06);
+    mg_sv0pt->GetXaxis()->SetTitleFont(42);
+    mg_sv0pt->GetXaxis()->CenterTitle(true);
+    mg_sv0pt->GetYaxis()->SetLabelFont(42);
+    //mg_sv0pt->GetYaxis()->SetLabelSize(0.05);
+    //mg_sv0pt->GetYaxis()->SetTitleSize(0.06);
+    mg_sv0pt->GetYaxis()->SetTitleOffset(1.10);
+    mg_sv0pt->GetYaxis()->SetTitleFont(42);
+    mg_sv0pt->GetYaxis()->CenterTitle(true);
+    legend_systems->Draw(); // Coloquei a legenda dos sistemas no 2º painel para não sobrepor o texto
+    legend_syst_params->Draw();
 
-    // Saving canvas as pdf
+    // Salvando o resultado final
+    gStyle->SetOptFit(0);
+    gStyle->SetOptStat(0);
+    //c->Range(0.04000706,-0.4080692,0.7405774,1.786744);
+    c->SetFillColor(0);
+    c->SetBorderMode(0);
+    c->SetBorderSize(0);
+    c->SetTickx(1);
+    c->SetTicky(1);
+    c->SetLeftMargin(0.1650854);
+    c->SetRightMargin(0.0341556);
+    c->SetTopMargin(0.08508404);
+    c->SetBottomMargin(0.1859244);
+    c->SetFrameBorderMode(0);
+    c->SetFrameBorderMode(0);
     c->Update();
-    c->SaveAs(Savename);
-    delete c;
-}
-
-void DoPlotRefs(TString Filename, TString Savename){
-
-    auto c = new TCanvas("c_ptref", "c_ptref", 1100, 1000);
-    c->Divide(2, 2);
-
-    TFile *f = TFile::Open(Filename, "READ");
-
-    // READ TGRAPHS
-
-    // Pion
-    TGraph *gr_1_pion = (TGraph*)f->Get("v0pt_ptref_1_pion");
-    TGraph *gr_2_pion = (TGraph*)f->Get("v0pt_ptref_2_pion"); 
-    TGraph *gr_3_pion = (TGraph*)f->Get("v0pt_ptref_3_pion"); 
-
-    // Kaon
-    TGraph *gr_1_kaon = (TGraph*)f->Get("v0pt_ptref_1_kaon");
-    TGraph *gr_2_kaon = (TGraph*)f->Get("v0pt_ptref_2_kaon"); 
-    TGraph *gr_3_kaon = (TGraph*)f->Get("v0pt_ptref_3_kaon");
-
-    // Proton
-    TGraph *gr_1_proton = (TGraph*)f->Get("v0pt_ptref_1_proton");
-    TGraph *gr_2_proton = (TGraph*)f->Get("v0pt_ptref_2_proton"); 
-    TGraph *gr_3_proton = (TGraph*)f->Get("v0pt_ptref_3_proton");
-
-    // All
-    TGraph *gr_1_all = (TGraph*)f->Get("v0pt_ptref_1_all");
-    TGraph *gr_2_all = (TGraph*)f->Get("v0pt_ptref_2_all"); 
-    TGraph *gr_3_all = (TGraph*)f->Get("v0pt_ptref_3_all");
-
-    // DO PLOTS
-
-    // Pion
-    c->cd(1);
-    customize_TGraph(gr_1_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 20, 2, 1.0);
-    customize_TGraph(gr_2_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 21, 4, 1.0);
-    customize_TGraph(gr_3_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 22, 6, 1.0);
-
-    auto leg_title_pion = new TLegend(0.04, 0.98, 0.5, 0.825);
-    leg_title_pion->SetTextSize(0.055);
-    leg_title_pion->AddEntry((TObject*)0, "He+He 5.36 TeV", "");
-    leg_title_pion->AddEntry((TObject*)0, "#pi^{#pm}     #eta_{gap} = 1", "");
-    leg_title_pion->SetBorderSize(0);
-    leg_title_pion->SetFillStyle(0);
-
-    auto leg_ptref_pion = new TLegend(0.14, 0.82, 0.485, 0.68);
-    leg_ptref_pion->SetTextSize(0.030);
-    leg_ptref_pion->AddEntry(gr_1_pion, "0.5-2 GeV", "pfl");
-    leg_ptref_pion->AddEntry(gr_2_pion, "0.5-5 GeV", "pfl");
-    leg_ptref_pion->AddEntry(gr_3_pion, "1-5 GeV", "pfl");
-    leg_ptref_pion->SetBorderSize(0);
-    leg_ptref_pion->SetFillStyle(0);
-
-    gr_2_pion->Draw("AP");
-    gr_1_pion->Draw("P SAME");
-    gr_3_pion->Draw("P SAME");
-    leg_title_pion->Draw();
-    leg_ptref_pion->Draw();
-    gPad->SetLogx();
-    gPad->SetLeftMargin(0.12);
-    gPad->SetTopMargin(0.01);
-
-    // Kaon
-    c->cd(2);
-    customize_TGraph(gr_1_kaon, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.5, 20, 2, 1.0);
-    customize_TGraph(gr_2_kaon, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.5, 21, 4, 1.0);
-    customize_TGraph(gr_3_kaon, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.5, 22, 6, 1.0);
-
-    auto leg_title_kaon = new TLegend(0.04, 0.98, 0.5, 0.825);
-    leg_title_kaon->SetTextSize(0.055);
-    leg_title_kaon->AddEntry((TObject*)0, "He+He 5.36 TeV", "");
-    leg_title_kaon->AddEntry((TObject*)0, "K^{#pm}     #eta_{gap} = 1", "");
-    leg_title_kaon->SetBorderSize(0);
-    leg_title_kaon->SetFillStyle(0);
-
-    auto leg_ptref_kaon = new TLegend(0.14, 0.82, 0.485, 0.68);
-    leg_ptref_kaon->SetTextSize(0.030);
-    leg_ptref_kaon->AddEntry(gr_1_kaon, "0.5-2 GeV", "pfl");
-    leg_ptref_kaon->AddEntry(gr_2_kaon, "0.5-5 GeV", "pfl");
-    leg_ptref_kaon->AddEntry(gr_3_kaon, "1-5 GeV", "pfl");
-    leg_ptref_kaon->SetBorderSize(0);
-    leg_ptref_kaon->SetFillStyle(0);
-
-    gr_3_kaon->Draw("AP");
-    gr_1_kaon->Draw("P SAME");
-    gr_2_kaon->Draw("P SAME");
-    leg_title_kaon->Draw();
-    leg_ptref_kaon->Draw();
-    gPad->SetLogx();
-    gPad->SetLeftMargin(0.12);
-    gPad->SetTopMargin(0.01);
-
-    // Proton
-    c->cd(3);
-    customize_TGraph(gr_1_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.4, 20, 2, 1.0);
-    customize_TGraph(gr_2_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.4, 21, 4, 1.0);
-    customize_TGraph(gr_3_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.4, 22, 6, 1.0);
-
-    auto leg_title_proton = new TLegend(0.04, 0.98, 0.5, 0.825);
-    leg_title_proton->SetTextSize(0.055);
-    leg_title_proton->AddEntry((TObject*)0, "He+He 5.36 TeV", "");
-    leg_title_proton->AddEntry((TObject*)0, "p,#bar{p}     #eta_{gap} = 1", "");
-    leg_title_proton->SetBorderSize(0);
-    leg_title_proton->SetFillStyle(0);
-
-    auto leg_ptref_proton = new TLegend(0.14, 0.82, 0.485, 0.68);
-    leg_ptref_proton->SetTextSize(0.030);
-    leg_ptref_proton->AddEntry(gr_1_proton, "0.5-2 GeV", "pfl");
-    leg_ptref_proton->AddEntry(gr_2_proton, "0.5-5 GeV", "pfl");
-    leg_ptref_proton->AddEntry(gr_3_proton, "1-5 GeV", "pfl");
-    leg_ptref_proton->SetBorderSize(0);
-    leg_ptref_proton->SetFillStyle(0);
-
-    gr_3_proton->Draw("AP");
-    gr_1_proton->Draw("P SAME");
-    gr_2_proton->Draw("P SAME");
-    leg_title_proton->Draw();
-    leg_ptref_proton->Draw();
-    gPad->SetLogx();
-    gPad->SetLeftMargin(0.12);
-    gPad->SetTopMargin(0.01);
-
-    // All
-    c->cd(4);
-    customize_TGraph(gr_1_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 20, 2, 1.0);
-    customize_TGraph(gr_2_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 21, 4, 1.0);
-    customize_TGraph(gr_3_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.75, 22, 6, 1.0);
-
-    auto leg_title_all = new TLegend(0.04, 0.98, 0.5, 0.825);
-    leg_title_all->SetTextSize(0.055);
-    leg_title_all->AddEntry((TObject*)0, "He+He 5.36 TeV", "");
-    leg_title_all->AddEntry((TObject*)0, "#pi^{#pm},K^{#pm},p,#bar{p}     #eta_{gap} = 1", "");
-    leg_title_all->SetBorderSize(0);
-    leg_title_all->SetFillStyle(0);
-
-    auto leg_ptref_all = new TLegend(0.14, 0.82, 0.485, 0.68);
-    leg_ptref_all->SetTextSize(0.030);
-    leg_ptref_all->AddEntry(gr_1_all, "0.5-2 GeV", "pfl");
-    leg_ptref_all->AddEntry(gr_2_all, "0.5-5 GeV", "pfl");
-    leg_ptref_all->AddEntry(gr_3_all, "1-5 GeV", "pfl");
-    leg_ptref_all->SetBorderSize(0);
-    leg_ptref_all->SetFillStyle(0);
-
-    gr_2_all->Draw("AP");
-    gr_1_all->Draw("P SAME");
-    gr_3_all->Draw("P SAME");
-    leg_title_all->Draw();
-    leg_ptref_all->Draw();
-    gPad->SetLogx();
-    gPad->SetLeftMargin(0.12);
-    gPad->SetTopMargin(0.01);
-
-    c->Update();
-    c->SaveAs(Savename);
-}
-
-void DoPlotEtas(TString Filename, TString Savename){
-
-    auto c = new TCanvas("c_etas", "c_etas", 1100, 1000);
-    c->Divide(2, 2);
-
-    TFile *f = TFile::Open(Filename, "READ");
-
-    // READ TGRAPHS
-
-    // Pion
-    TGraph *gr_0_pion = (TGraph*)f->Get("v0pt_eta_0_pion");
-    TGraph *gr_1_pion = (TGraph*)f->Get("v0pt_ptref_1_pion");
-    TGraph *gr_2_pion = (TGraph*)f->Get("v0pt_eta_2_pion"); 
-    TGraph *gr_3_pion = (TGraph*)f->Get("v0pt_eta_3_pion"); 
-
-    // Kaon
-    TGraph *gr_0_kaon = (TGraph*)f->Get("v0pt_eta_0_kaon"); 
-    TGraph *gr_1_kaon = (TGraph*)f->Get("v0pt_ptref_1_kaon");
-    TGraph *gr_2_kaon = (TGraph*)f->Get("v0pt_eta_2_kaon"); 
-    TGraph *gr_3_kaon = (TGraph*)f->Get("v0pt_eta_3_kaon");
-
-    // Proton
-    TGraph *gr_0_proton = (TGraph*)f->Get("v0pt_eta_0_proton"); 
-    TGraph *gr_1_proton = (TGraph*)f->Get("v0pt_ptref_1_proton");
-    TGraph *gr_2_proton = (TGraph*)f->Get("v0pt_eta_2_proton"); 
-    TGraph *gr_3_proton = (TGraph*)f->Get("v0pt_eta_3_proton");
-
-    // All
-    TGraph *gr_0_all = (TGraph*)f->Get("v0pt_eta_0_all"); 
-    TGraph *gr_1_all = (TGraph*)f->Get("v0pt_ptref_1_all");
-    TGraph *gr_2_all = (TGraph*)f->Get("v0pt_eta_2_all"); 
-    TGraph *gr_3_all = (TGraph*)f->Get("v0pt_eta_3_all");
-
-    // DO PLOTS
-
-    // Pion
-    c->cd(1);
-    customize_TGraph(gr_0_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 20, 2, 1.0);
-    customize_TGraph(gr_1_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 21, 4, 1.0);
-    customize_TGraph(gr_2_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 22, 6, 1.0);
-    customize_TGraph(gr_3_pion, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.0, 0.75, 34, 209, 1.0);
-
-    auto leg_title_pion = new TLegend(0.04, 0.98, 0.5, 0.825);
-    leg_title_pion->SetTextSize(0.055);
-    leg_title_pion->AddEntry((TObject*)0, "Ne+Ne 5.36 TeV", "");
-    leg_title_pion->AddEntry((TObject*)0, "#pi^{#pm}     p_{T}^{ref}: 0.5-2 GeV", "");
-    leg_title_pion->SetBorderSize(0);
-    leg_title_pion->SetFillStyle(0);
-
-    auto leg_ptref_pion = new TLegend(0.14, 0.82, 0.485, 0.68);
-    leg_ptref_pion->SetTextSize(0.030);
-    leg_ptref_pion->AddEntry(gr_0_pion, "#eta_{gap} = 0", "pfl");
-    leg_ptref_pion->AddEntry(gr_1_pion, "#eta_{gap} = 1", "pfl");
-    leg_ptref_pion->AddEntry(gr_2_pion, "#eta_{gap} = 2", "pfl");
-    leg_ptref_pion->AddEntry(gr_3_pion, "#eta_{gap} = 3", "pfl");
-    leg_ptref_pion->SetBorderSize(0);
-    leg_ptref_pion->SetFillStyle(0);
-
-    gr_1_pion->Draw("AP");
-    gr_0_pion->Draw("P SAME");
-    gr_3_pion->Draw("P SAME");
-    gr_2_pion->Draw("P SAME");
-    leg_title_pion->Draw();
-    leg_ptref_pion->Draw();
-    gPad->SetLogx();
-    gPad->SetLeftMargin(0.12);
-    gPad->SetTopMargin(0.01);
-
-    // Kaon
-    c->cd(2);
-    customize_TGraph(gr_0_kaon, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.6, 20, 2, 1.0);
-    customize_TGraph(gr_1_kaon, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.6, 21, 4, 1.0);
-    customize_TGraph(gr_2_kaon, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.6, 22, 6, 1.0);
-    customize_TGraph(gr_3_kaon, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.1, 0.6, 34, 209, 1.0);
-
-    auto leg_title_kaon = new TLegend(0.04, 0.98, 0.5, 0.825);
-    leg_title_kaon->SetTextSize(0.055);
-    leg_title_kaon->AddEntry((TObject*)0, "Ne+Ne 5.36 TeV", "");
-    leg_title_kaon->AddEntry((TObject*)0, "#K^{#pm}     p_{T}^{ref}: 0.5-2 GeV", "");
-    leg_title_kaon->SetBorderSize(0);
-    leg_title_kaon->SetFillStyle(0);
-
-    auto leg_ptref_kaon = new TLegend(0.14, 0.82, 0.485, 0.68);
-    leg_ptref_kaon->SetTextSize(0.030);
-    leg_ptref_kaon->AddEntry(gr_0_kaon, "#eta_{gap} = 0", "pfl");
-    leg_ptref_kaon->AddEntry(gr_1_kaon, "#eta_{gap} = 1", "pfl");
-    leg_ptref_kaon->AddEntry(gr_2_kaon, "#eta_{gap} = 2", "pfl");
-    leg_ptref_kaon->AddEntry(gr_3_kaon, "#eta_{gap} = 3", "pfl");
-    leg_ptref_kaon->SetBorderSize(0);
-    leg_ptref_kaon->SetFillStyle(0);
-
-    gr_1_kaon->Draw("AP");
-    gr_0_kaon->Draw("P SAME");
-    gr_3_kaon->Draw("P SAME");
-    gr_2_kaon->Draw("P SAME");
-    leg_title_kaon->Draw();
-    leg_ptref_kaon->Draw();
-    gPad->SetLogx();
-    gPad->SetLeftMargin(0.12);
-    gPad->SetTopMargin(0.01);
-
-    // Proton
-    c->cd(3);
-    customize_TGraph(gr_0_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.09, 0.4, 20, 2, 1.0);
-    customize_TGraph(gr_1_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.09, 0.4, 21, 4, 1.0);
-    customize_TGraph(gr_2_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.09, 0.4, 22, 6, 1.0);
-    customize_TGraph(gr_3_proton, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, 0.09, 0.4, 34, 209, 1.0);
-
-    auto leg_title_proton = new TLegend(0.04, 0.98, 0.5, 0.825);
-    leg_title_proton->SetTextSize(0.055);
-    leg_title_proton->AddEntry((TObject*)0, "Ne+Ne 5.36 TeV", "");
-    leg_title_proton->AddEntry((TObject*)0, "p,#bar{p}     p_{T}^{ref}: 0.5-2 GeV", "");
-    leg_title_proton->SetBorderSize(0);
-    leg_title_proton->SetFillStyle(0);
-
-    auto leg_ptref_proton = new TLegend(0.14, 0.82, 0.485, 0.68);
-    leg_ptref_proton->SetTextSize(0.030);
-    leg_ptref_proton->AddEntry(gr_0_proton, "#eta_{gap} = 0", "pfl");
-    leg_ptref_proton->AddEntry(gr_1_proton, "#eta_{gap} = 1", "pfl");
-    leg_ptref_proton->AddEntry(gr_2_proton, "#eta_{gap} = 2", "pfl");
-    leg_ptref_proton->AddEntry(gr_3_proton, "#eta_{gap} = 3", "pfl");
-    leg_ptref_proton->SetBorderSize(0);
-    leg_ptref_proton->SetFillStyle(0);
-
-    gr_1_proton->Draw("AP");
-    gr_0_proton->Draw("P SAME");
-    gr_3_proton->Draw("P SAME");
-    gr_2_proton->Draw("P SAME");
-    leg_title_proton->Draw();
-    leg_ptref_proton->Draw();
-    gPad->SetLogx();
-    gPad->SetLeftMargin(0.12);
-    gPad->SetTopMargin(0.01);
-
-    // All
-    c->cd(4);
-    customize_TGraph(gr_0_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.02, 0.75, 20, 2, 1.0);
-    customize_TGraph(gr_1_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.02, 0.75, 21, 4, 1.0);
-    customize_TGraph(gr_2_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.02, 0.75, 22, 6, 1.0);
-    customize_TGraph(gr_3_all, " ; p_{T} [GeV]; v_{0}(p_{T})", 0.0, 10.0, -0.02, 0.75, 34, 209, 1.0);
-
-    auto leg_title_all = new TLegend(0.04, 0.98, 0.5, 0.825);
-    leg_title_all->SetTextSize(0.055);
-    leg_title_all->AddEntry((TObject*)0, "Ne+Ne 5.36 TeV", "");
-    leg_title_all->AddEntry((TObject*)0, "#pi^{#pm},K^{#pm},p,#bar{p}     p_{T}^{ref}: 0.5-2 GeV", "");
-    leg_title_all->SetBorderSize(0);
-    leg_title_all->SetFillStyle(0);
-
-    auto leg_ptref_all = new TLegend(0.14, 0.82, 0.485, 0.68);
-    leg_ptref_all->SetTextSize(0.030);
-    leg_ptref_all->AddEntry(gr_0_all, "#eta_{gap} = 0", "pfl");
-    leg_ptref_all->AddEntry(gr_1_all, "#eta_{gap} = 1", "pfl");
-    leg_ptref_all->AddEntry(gr_2_all, "#eta_{gap} = 2", "pfl");
-    leg_ptref_all->AddEntry(gr_3_all, "#eta_{gap} = 3", "pfl");
-    leg_ptref_all->SetBorderSize(0);
-    leg_ptref_all->SetFillStyle(0);
-
-    gr_0_all->Draw("AP");
-    gr_3_all->Draw("P SAME");
-    gr_2_all->Draw("P SAME");
-    gr_1_all->Draw("P SAME");
-    leg_title_all->Draw();
-    leg_ptref_all->Draw();
-    gPad->SetLogx();
-    gPad->SetLeftMargin(0.12);
-    gPad->SetTopMargin(0.01);
-
-    c->Update();
-    c->SaveAs(Savename);
+    c->SaveAs("./Plots/All_Systems_Combined.pdf");
+    
+    // Opcional: Limpar memória do canvas se for rodar em uma macro maior
+    // delete c;
 }
