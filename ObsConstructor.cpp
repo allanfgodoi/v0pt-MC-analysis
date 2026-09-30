@@ -148,6 +148,8 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
                 float py = evt_py[i];
                 float pz = evt_pz[i];
 
+                if (targetPID.count(abs(pid)) == 0) continue; // PID filter
+
                 double pt = sqrt(px*px + py*py);
                 if (pt <= 0.02) continue;
                 double theta = 0.0;
