@@ -140,15 +140,15 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
             }
 
             int Nch = 0;
+            vector<float> cand_pt, cand_eta;
 
-            // 1st track loop to find event multiplicty Nch (No filters except for centrality select criteria)
+            // Tracks loop over an event, here we define Nch and apply the tracks cuts
             for (int i=0; i<n_particles; i++){
-                int pid = evt_pid[i];
+                if (targetPID.count(abs(evt_pid[i])) == 0) continue; // PID filter
+
                 float px = evt_px[i];
                 float py = evt_py[i];
                 float pz = evt_pz[i];
-
-                if (targetPID.count(abs(pid)) == 0) continue; // PID filter
 
                 double pt = sqrt(px*px + py*py);
                 if (pt <= 0.02) continue;
@@ -158,9 +158,15 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
 
                 // Nch definition
                 if (fabs(eta) > 3.0 && fabs(eta) < 5.0) Nch++;
+
+                // Kinematic cuts (same as ATLAS)
+                if (pt >= 0.5 && pt <= 10.0 && fabs(eta) <= 2.4){
+                    cand_pt.push_back(pt);
+                    cand_eta.push_back(eta);
+                }
             }
 
-            if (Nch < nch_min || Nch > nch_max) continue; // Centrality selection
+            if (Nch < nch_min || Nch > nch_max) continue; // Centrality selection, we also just keep the selected tracks
 
             vector<float> n_pt_A(nBins, 0.0); // Define vector to hold the fractions of pT in the event
             vector<float> n_pt_B(nBins, 0.0);
@@ -170,23 +176,10 @@ Gathered_Data DataGathering(TString Filename, float eta_gap, int nch_min, int nc
 
             float corrFac = 1.0; // Monte Carlo events. I'm using this to reuse the same code as data
 
-            // 2nd track loop, now to calculate the quantities
-            for (int i=0; i<n_particles; i++){
-                int pid = evt_pid[i];
-                float px = evt_px[i];
-                float py = evt_py[i];
-                float pz = evt_pz[i];
-
-                // PID filter
-                if (targetPID.count(abs(pid)) == 0) continue;
-
-                double pt = sqrt(px*px + py*py);
-                if (pt < 0.5 || pt > 10.0) continue; // Kinematic filters pt. 1 (same as ATLAS)
-                double theta = 0.0;
-                if (pt > 1e-5) theta = atan2(pt, pz); // Avoids division by zero
-                double eta = -log(tan(theta/2.0));
-
-                if (fabs(eta) > 2.4) continue; // Kinematic filter pt. 2 (same as ATLAS)
+            // Looping over the selected tracks from an event within the desired centrality range
+            for (int i=0; i<cand_pt.size(); i++){
+                float pt = cand_pt[i];
+                float eta = cand_eta[i];
 
                 // Subevent selection
                 bool isInA = (eta >= -2.4 && eta <= -eta_gap/2.0);
